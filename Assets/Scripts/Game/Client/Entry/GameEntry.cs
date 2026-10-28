@@ -73,6 +73,7 @@ namespace PixelCar.Client
         private void Awake()
         {
             sInstance = this;
+            MyGame.G.Init();
             SetupCamera();
 
             if (StartWindow)
@@ -104,6 +105,11 @@ namespace PixelCar.Client
         /// </summary>
         private void Update()
         {
+            if (MyGame.G.IsReady)
+            {
+                MyGame.G.App.Update(Mathf.RoundToInt(Time.deltaTime * 1000f));
+            }
+
             if (Main != null)
             {
                 Main.Tick(Time.deltaTime);
@@ -127,6 +133,7 @@ namespace PixelCar.Client
             }
 
             sInstance = null;
+            MyGame.G.Destroy();
         }
 
         /// <summary>

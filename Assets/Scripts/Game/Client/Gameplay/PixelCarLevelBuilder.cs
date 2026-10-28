@@ -41,7 +41,7 @@ namespace PixelCar.Client
                 }
                 catch (System.Exception exception)
                 {
-                    Debug.LogWarning($"关卡 JSON 解析失败，改用测试关：{exception.Message}");
+                    MyGame.Logger.Warn($"关卡 JSON 解析失败，改用测试关：{exception.Message}");
                 }
             }
 

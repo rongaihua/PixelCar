@@ -2,7 +2,9 @@
     "name": "pixelcar_client",
     "rootNamespace": "PixelCar.Client",
     "references": [
-        "pixelcar_common"
+        "pixelcar_common",
+        "MyGame.Shared",
+        "MyGame.Client"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
