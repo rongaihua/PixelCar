@@ -97,19 +97,18 @@ namespace PixelCar.Client
         {
             mRoot.transform.position = position;
             mRoot.transform.localScale = new Vector3(width, height, 1f);
-            mFillTransform.localPosition = new Vector3(-width * 0.5f, 0f, 0f);
+            // 进度条挂在车身上，本地坐标用单位尺寸，避免和父节点缩放乘两次
+            mFillTransform.localPosition = new Vector3(-0.5f, 0f, 0f);
         }
 
         /// <summary>
         /// 设置装载进度条
         /// </summary>
         /// <param name="fill">进度 [0,1]</param>
-        /// <param name="height">车身高度</param>
         /// <param name="alpha">不透明度</param>
-        public void SetFill(float fill, float height, float alpha)
+        public void SetFill(float fill, float alpha)
         {
-            var width = mRoot.transform.localScale.x;
-            mFillTransform.localScale = new Vector3(MathUtil.MaxFloat(0.001f, width * fill), height, 1f);
+            mFillTransform.localScale = new Vector3(MathUtil.MaxFloat(0.001f, fill), 1f, 1f);
             mFill.color = new Color(1f, 1f, 1f, 0.5f * alpha);
         }
 

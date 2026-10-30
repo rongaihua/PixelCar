@@ -53,6 +53,21 @@ namespace PixelCar.Client
         public StartWindow StartWindow;
 
         /// <summary>
+        /// 背景音乐目录。开场从 music_01 到 music_14 里随机一首。
+        /// </summary>
+        private const string MusicDirectory = "Assets/Res/audio/music/";
+
+        /// <summary>
+        /// 背景音乐编号下限，含
+        /// </summary>
+        private const int MusicMin = 1;
+
+        /// <summary>
+        /// 背景音乐编号上限，含
+        /// </summary>
+        private const int MusicMax = 14;
+
+        /// <summary>
         /// 当前实例
         /// </summary>
         public static GameEntry Instance => sInstance;
@@ -75,6 +90,7 @@ namespace PixelCar.Client
             sInstance = this;
             MyGame.G.Init();
             SetupCamera();
+            PlayBackgroundMusic();
 
             if (StartWindow)
             {
@@ -134,6 +150,40 @@ namespace PixelCar.Client
 
             sInstance = null;
             MyGame.G.Destroy();
+        }
+
+        /// <summary>
+        /// 随机播放一首循环背景音乐
+        /// </summary>
+        private static void PlayBackgroundMusic()
+        {
+            var music = MyGame.G.MusicMgr;
+            if (music == null)
+            {
+                return;
+            }
+
+            music.Play(PickMusic());
+        }
+
+        /// <summary>
+        /// 在 music_01 到 music_14 里随机一首
+        /// </summary>
+        /// <returns>曲目路径</returns>
+        private static string PickMusic()
+        {
+            var index = Random.Range(MusicMin, MusicMax + 1);
+            return MusicPath(index);
+        }
+
+        /// <summary>
+        /// 拼出一首背景音乐的路径
+        /// </summary>
+        /// <param name="index">曲目编号，从 1 起</param>
+        /// <returns>曲目路径</returns>
+        private static string MusicPath(int index)
+        {
+            return MusicDirectory + "music_" + index.ToString("00") + ".mp3";
         }
 
         /// <summary>

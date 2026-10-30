@@ -16,7 +16,12 @@ namespace PixelCar.Client
     /// </summary>
     public class MainModule : GameModule
     {
-        private const float PoolRowGap = 0.86f;
+        private const float PoolCarScale = 8f;
+        private const float PoolCarWidth = 0.82f * PoolCarScale;
+        private const float PoolCarHeight = 0.54f * PoolCarScale;
+        private const float PoolColumnGap = 1f * PoolCarScale;
+        private const float PoolRowGap = 0.86f * PoolCarScale;
+        private const float LaneStripHeight = 1.6f;
         private const float DeadlockConfirmSeconds = 0.6f;
 
         private readonly Dictionary<CarState, CarView> mCarViews = new();
@@ -193,8 +198,8 @@ namespace PixelCar.Client
 
             mInitialCells = MathUtil.Max(1, mSim.Board.TotalRemaining);
             mLaneY = -1.5f;
-            mPoolTopY = mLaneY - 2.6f;
-            mPoolCols = MathUtil.Clamp(mSim.Board.Width / 5, 6, 12);
+            mPoolTopY = mLaneY - LaneStripHeight * 0.5f - 1.2f - PoolCarHeight * 0.5f;
+            mPoolCols = FitPoolColumns(mSim.Board.Width);
         }
 
         /// <summary>
@@ -228,7 +233,7 @@ namespace PixelCar.Client
             var laneObject = new GameObject("Lane");
             laneObject.transform.SetParent(mRoot.transform, false);
             laneObject.transform.position = new Vector3(mSim.Board.Width * 0.5f, mLaneY, 0f);
-            laneObject.transform.localScale = new Vector3(mSim.Board.Width + 4f, 1.6f, 1f);
+            laneObject.transform.localScale = new Vector3(mSim.Board.Width + 4f, LaneStripHeight, 1f);
 
             var renderer = laneObject.AddComponent<SpriteRenderer>();
             renderer.sprite = SpriteLibrary.BodySprite;
@@ -301,12 +306,35 @@ namespace PixelCar.Client
                 var column = index % mPoolCols;
                 var row = index / mPoolCols;
                 var view = mCarViews[car];
-                view.SetPose(PoolPosition(column, row), 0.82f, 0.54f);
-                view.SetFill(car.Fill, 0.54f, 1f);
+                view.SetPose(PoolPosition(column, row), PoolCarWidth, PoolCarHeight);
+                view.SetFill(car.Fill, 1f);
                 ++index;
             }
 
             FitCamera();
+        }
+
+        /// <summary>
+        /// 列数收到盘面宽度以内，放大后的车才不会把镜头撑得太远
+        /// </summary>
+        /// <param name="boardWidth">盘面宽度</param>
+        /// <returns>列数</returns>
+        private static int FitPoolColumns(int boardWidth)
+        {
+            var columns = 1;
+            var limit = MathUtil.Max(1, boardWidth);
+            while (columns < 12)
+            {
+                var nextWidth = columns * PoolColumnGap + PoolCarWidth;
+                if (nextWidth > limit)
+                {
+                    break;
+                }
+
+                ++columns;
+            }
+
+            return columns;
         }
 
         /// <summary>
@@ -317,7 +345,7 @@ namespace PixelCar.Client
         /// <returns>世界坐标</returns>
         private Vector3 PoolPosition(int column, int row)
         {
-            var x = column - (mPoolCols - 1) * 0.5f + mSim.Board.Width * 0.5f;
+            var x = (column - (mPoolCols - 1) * 0.5f) * PoolColumnGap + mSim.Board.Width * 0.5f;
             var y = mPoolTopY - row * PoolRowGap;
             return new Vector3(x, y, 0f);
         }
@@ -335,10 +363,16 @@ namespace PixelCar.Client
 
             var top = mSim.Board.Height + 1.2f;
             var rows = MathUtil.Max(1, MathUtil.CeilToInt(mSim.Pool.Count / (float)mPoolCols));
-            var bottom = mSim.Pool.Count > 0 ? mPoolTopY - (rows - 1) * PoolRowGap - 1.4f : mLaneY - 2.5f;
+            var bottom = mLaneY - 2.5f;
+            var halfWidth = mSim.Board.Width * 0.5f + 1.2f;
+            if (mSim.Pool.Count > 0)
+            {
+                bottom = mPoolTopY - (rows - 1) * PoolRowGap - PoolCarHeight * 0.5f - 0.8f;
+                var poolHalf = ((mPoolCols - 1) * PoolColumnGap + PoolCarWidth) * 0.5f;
+                halfWidth = MathUtil.MaxFloat(halfWidth, poolHalf + 0.6f);
+            }
 
             var halfHeight = (top - bottom) * 0.5f;
-            var halfWidth = mSim.Board.Width * 0.5f + 1.2f;
             var aspect = MathUtil.MaxFloat(0.3f, camera.aspect);
             var size = MathUtil.MaxFloat(halfHeight, halfWidth / aspect);
 
@@ -405,8 +439,8 @@ namespace PixelCar.Client
                 var view = mCarViews[car];
                 var column = index % mPoolCols;
                 var row = index / mPoolCols;
-                view.SetPose(PoolPosition(column, row), 0.82f, 0.54f);
-                view.SetFill(car.Fill, 0.54f, 1f);
+                view.SetPose(PoolPosition(column, row), PoolCarWidth, PoolCarHeight);
+                view.SetFill(car.Fill, 1f);
                 ++index;
             }
 
@@ -416,7 +450,7 @@ namespace PixelCar.Client
                 var length = CarLength(car);
                 var alpha = view.AdvanceFade(car.X, mSim.Board.Width, deltaTime);
                 view.SetPose(new Vector3(car.X, mLaneY, 0f), length, 0.86f);
-                view.SetFill(car.Fill, 0.86f, alpha);
+                view.SetFill(car.Fill, alpha);
 
                 var color = mPalette[car.Color];
                 if (car.Phase == ECarPhase.Parked)

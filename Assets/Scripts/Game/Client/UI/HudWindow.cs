@@ -160,6 +160,7 @@ namespace PixelCar.Client
             var buttonRect = new Rect(rect.x + (width - buttonWidth) * 0.5f, rect.y + height - buttonHeight - 24f * scale, buttonWidth, buttonHeight);
             if (GUI.Button(buttonRect, "重开本关"))
             {
+                ButtonSoundListener.PlayClick();
                 mRestartRequested = true;
             }
         }

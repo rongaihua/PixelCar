@@ -67,6 +67,7 @@ namespace PixelCar.Client
                 PauseButton.onClick.AddListener(OnPauseButtonClicked);
             }
 
+            ButtonSoundListener.BindAll(gameObject);
             Refresh();
         }
 
