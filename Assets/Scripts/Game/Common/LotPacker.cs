@@ -1,4 +1,4 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-29
@@ -151,56 +151,43 @@ namespace PixelCar.Common
                 return;
             }
 
-            var columnTop = new int[cols];
-            for (var i = 0; i < cols; ++i)
+            // 按“带”横排：一带最多 cols 辆，带高取这一带里最长的车，横向填满再换带
+            var row = 0;
+            var index = 0;
+            while (index < cars.Count)
             {
-                columnTop[i] = 0;
-            }
-
-            // 倒序放：列表末尾的车排在最上面，最靠近车道
-            for (var i = cars.Count - 1; i >= 0; --i)
-            {
-                var car = cars[i];
-                if (car == null)
+                var count = MathUtil.Min(cols, cars.Count - index);
+                var bandSpan = 1;
+                for (var i = 0; i < count; ++i)
                 {
-                    continue;
+                    var car = cars[index + i];
+                    if (car == null)
+                    {
+                        continue;
+                    }
+
+                    car.Span = MathUtil.Clamp(SpanOf(car.Capacity), 1, 3);
+                    bandSpan = MathUtil.Max(bandSpan, car.Span);
                 }
 
-                var span = MathUtil.Clamp(SpanOf(car.Capacity), 1, 3);
-                var col = ShortestColumn(columnTop);
-                car.Dir = ECarDir.Up;
-                car.Span = span;
-                car.Col = col;
-                car.Row = columnTop[col];
-                columnTop[col] += span;
-            }
-
-            var maxTop = 1;
-            for (var i = 0; i < cols; ++i)
-            {
-                maxTop = MathUtil.Max(maxTop, columnTop[i]);
-            }
-
-            rows = maxTop;
-        }
-
-        /// <summary>
-        /// 找当前最空的一列，尽量让各列高度接近。
-        /// </summary>
-        /// <param name="columnTop">每列已占到的行号</param>
-        /// <returns>列号</returns>
-        private static int ShortestColumn(int[] columnTop)
-        {
-            var best = 0;
-            for (var i = 1; i < columnTop.Length; ++i)
-            {
-                if (columnTop[i] < columnTop[best])
+                for (var i = 0; i < count; ++i)
                 {
-                    best = i;
+                    var car = cars[index + i];
+                    if (car == null)
+                    {
+                        continue;
+                    }
+
+                    car.Dir = ECarDir.Up;
+                    car.Col = i;
+                    car.Row = row;
                 }
+
+                row += bandSpan;
+                index += count;
             }
 
-            return best;
+            rows = MathUtil.Max(1, row);
         }
 
         /// <summary>

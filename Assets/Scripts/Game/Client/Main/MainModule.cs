@@ -243,6 +243,7 @@ namespace PixelCar.Client
             hudObject.transform.SetParent(mRoot.transform, false);
             mHud = hudObject.AddComponent<HudWindow>();
             mHud.Bind(this);
+            hudObject.AddComponent<BoosterBar>();
 
             mBoardView.Refresh();
             mLastPoolCount = mSim.Pool.Count;
@@ -488,7 +489,7 @@ namespace PixelCar.Client
             }
 
             var top = mBoardBottomY + mBoardWorldHeight + 0.35f;
-            var bottom = mPoolTopY - mLotRows * Cell - 0.5f;
+            var bottom = mPoolTopY - mLotRows * Cell - 1.4f;
             var midX = mLotCols * Cell * 0.5f;
 
             var halfHeight = (top - bottom) * 0.5f;
