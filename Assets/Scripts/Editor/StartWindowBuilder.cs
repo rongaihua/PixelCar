@@ -1,4 +1,4 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -112,8 +112,8 @@ namespace PixelCar.Editor
             PlaceTopLeft(frame.rectTransform, 100f, 92f, 150f, 150f);
 
             var avatar = CreateImage("Avatar", root, LoadSprite("avatar", UiSpriteFactory.RoundedRect()), Color.white);
-            avatar.type = Image.Type.Sliced;
-            PlaceTopLeft(avatar.rectTransform, 100f, 96f, 132f, 132f);
+            avatar.type = Image.Type.Simple;
+            PlaceTopLeft(avatar.rectTransform, 100f, 96f, 116f, 116f);
 
             var panel = CreateImage("TopPanel", root, LoadSprite("pill_cream", UiSpriteFactory.RoundedRect()), Color.white);
             panel.type = Image.Type.Sliced;
@@ -122,9 +122,8 @@ namespace PixelCar.Editor
             var heart = CreateImage("HeartIcon", root, LoadSprite("heart", UiSpriteFactory.Circle()), Color.white);
             PlaceTopLeft(heart.rectTransform, 232f, 66f, 56f, 56f);
 
-            var heartText = CreateText("HeartText", root, "1", 38, Color.white, TextAnchor.MiddleLeft);
+            var heartText = CreateText("HeartText", root, "1", 40, CreamText, TextAnchor.MiddleLeft);
             heartText.fontStyle = FontStyle.Bold;
-            AddOutline(heartText.gameObject, new Color(0.66f, 0.14f, 0.10f), 2f);
             PlaceTopLeftEdge(heartText.rectTransform, 264f, 68f, 70f, 50f);
 
             var timerText = CreateText("TimerText", root, "19:12", 34, CreamText, TextAnchor.MiddleCenter);

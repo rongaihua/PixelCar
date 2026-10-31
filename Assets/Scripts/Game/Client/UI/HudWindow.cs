@@ -16,12 +16,18 @@ namespace PixelCar.Client
     public class HudWindow : MonoBehaviour
     {
         private MainModule mModule;
-        private GUIStyle mTitleStyle;
+        private static readonly string[] sPercents = BuildPercents();
+
         private GUIStyle mLabelStyle;
+        private GUIStyle mBadgeStyle;
+        private GUIStyle mPercentStyle;
         private GUIStyle mOverlayTitleStyle;
         private GUIStyle mOverlayBodyStyle;
         private float mStyleScale = -1f;
         private bool mRestartRequested;
+        private string mBadgeText = "0/5";
+        private int mBadgeCount = -1;
+        private int mBadgeCapacity = -1;
 
         /// <summary>
         /// 绑定主模块
@@ -78,13 +84,21 @@ namespace PixelCar.Client
 
             mStyleScale = scale;
 
-            mTitleStyle = new GUIStyle(GUI.skin.label);
-            mTitleStyle.fontSize = MathUtil.RoundToInt(20f * scale);
-            mTitleStyle.normal.textColor = Color.white;
-
             mLabelStyle = new GUIStyle(GUI.skin.label);
             mLabelStyle.fontSize = MathUtil.RoundToInt(15f * scale);
             mLabelStyle.normal.textColor = new Color(0.8f, 0.85f, 0.95f);
+
+            mBadgeStyle = new GUIStyle(GUI.skin.box);
+            mBadgeStyle.fontSize = MathUtil.RoundToInt(22f * scale);
+            mBadgeStyle.alignment = TextAnchor.MiddleCenter;
+            mBadgeStyle.fontStyle = FontStyle.Bold;
+            mBadgeStyle.normal.textColor = Color.white;
+
+            mPercentStyle = new GUIStyle(GUI.skin.label);
+            mPercentStyle.fontSize = MathUtil.RoundToInt(14f * scale);
+            mPercentStyle.alignment = TextAnchor.MiddleCenter;
+            mPercentStyle.fontStyle = FontStyle.Bold;
+            mPercentStyle.normal.textColor = new Color(1f, 0.96f, 0.86f);
 
             mOverlayTitleStyle = new GUIStyle(GUI.skin.label);
             mOverlayTitleStyle.fontSize = MathUtil.RoundToInt(34f * scale);
@@ -98,33 +112,110 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 顶部条与图例
+        /// 车道名额和每辆车上的百分比
         /// </summary>
         /// <param name="scale">缩放</param>
         private void DrawHud(float scale)
         {
-            var board = mModule.Sim.Board;
-            var taken = mModule.InitialCells - board.TotalRemaining;
-
-            var text = $"车道 {mModule.Sim.Lane.Count}/{mModule.LaneCapacity}    剩余 {board.TotalRemaining} 格    已取 {100f * taken / mModule.InitialCells:F0}%";
-            GUI.Label(new Rect(12f * scale, 8f * scale, 720f * scale, 26f * scale), text, mTitleStyle);
-
-            var y = 32f * scale;
-            for (var i = 0; i < mModule.Palette.Length; ++i)
+            var camera = Camera.main;
+            if (!camera)
             {
-                var x = 12f * scale + i * 96f * scale;
-                GUI.color = mModule.Palette[i];
-                GUI.DrawTexture(new Rect(x, y, 16f * scale, 16f * scale), Texture2D.whiteTexture);
-                GUI.color = Color.white;
-                GUI.Label(new Rect(x + 22f * scale, y - 3f * scale, 72f * scale, 20f * scale), board.Remaining[i].ToString(), mLabelStyle);
+                return;
             }
+
+            DrawBadge(camera, scale);
+            DrawPercents(camera, scale);
 
             if (mModule.MessageTimer > 0f)
             {
-                GUI.Label(new Rect(12f * scale, Screen.height - 46f * scale, Screen.width - 24f * scale, 26f * scale), mModule.Message, mLabelStyle);
+                GUI.Label(new Rect(12f * scale, Screen.height - 36f * scale, Screen.width - 24f * scale, 26f * scale), mModule.Message, mLabelStyle);
+            }
+        }
+
+        /// <summary>
+        /// 路中央的 n/5
+        /// </summary>
+        /// <param name="camera">主相机</param>
+        /// <param name="scale">缩放</param>
+        private void DrawBadge(Camera camera, float scale)
+        {
+            var screen = camera.WorldToScreenPoint(mModule.BadgeWorld);
+            if (screen.z < 0f)
+            {
+                return;
             }
 
-            GUI.Label(new Rect(12f * scale, Screen.height - 26f * scale, Screen.width - 24f * scale, 22f * scale), "点下面的车 → 放进车道；点车道上的车 → 移除（调试）", mLabelStyle);
+            var width = 92f * scale;
+            var height = 36f * scale;
+            var rect = new Rect(screen.x - width * 0.5f, Screen.height - screen.y - height * 0.5f, width, height);
+            var old = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.18f, 0.45f, 0.86f, 0.94f);
+            GUI.Box(rect, BadgeText(), mBadgeStyle);
+            GUI.backgroundColor = old;
+        }
+
+        /// <summary>
+        /// 车道上每辆车下面的装载百分比
+        /// </summary>
+        /// <param name="camera">主相机</param>
+        /// <param name="scale">缩放</param>
+        private void DrawPercents(Camera camera, float scale)
+        {
+            var lane = mModule.Sim.Lane;
+            var width = 64f * scale;
+            var height = 22f * scale;
+            for (var i = 0; i < lane.Count; ++i)
+            {
+                var car = lane[i];
+                if (car.Phase == ECarPhase.Exiting)
+                {
+                    continue;
+                }
+
+                var screen = camera.WorldToScreenPoint(mModule.LanePercentWorld(car));
+                if (screen.z < 0f)
+                {
+                    continue;
+                }
+
+                var percent = MathUtil.Clamp(MathUtil.RoundToInt(car.Fill * 100f), 0, 100);
+                var rect = new Rect(screen.x - width * 0.5f, Screen.height - screen.y - height * 0.5f, width, height);
+                GUI.Label(rect, sPercents[percent], mPercentStyle);
+            }
+        }
+
+        /// <summary>
+        /// 名额文字。人数或容量变了才重新拼。
+        /// </summary>
+        /// <returns>例如 2/5</returns>
+        private string BadgeText()
+        {
+            var count = mModule.Sim.Lane.Count;
+            var capacity = mModule.LaneCapacity;
+            if (count == mBadgeCount && capacity == mBadgeCapacity)
+            {
+                return mBadgeText;
+            }
+
+            mBadgeCount = count;
+            mBadgeCapacity = capacity;
+            mBadgeText = count.ToString() + "/" + capacity.ToString();
+            return mBadgeText;
+        }
+
+        /// <summary>
+        /// 0% 到 100% 的文字，绘制时不再拼字符串。
+        /// </summary>
+        /// <returns>百分比文字</returns>
+        private static string[] BuildPercents()
+        {
+            var values = new string[101];
+            for (var i = 0; i < values.Length; ++i)
+            {
+                values[i] = i.ToString() + "%";
+            }
+
+            return values;
         }
 
         /// <summary>

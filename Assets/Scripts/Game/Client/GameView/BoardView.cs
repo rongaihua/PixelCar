@@ -1,4 +1,4 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -15,7 +15,7 @@ namespace PixelCar.Client
     /// </summary>
     public class BoardView
     {
-        private static readonly Color32 sEmptyColor = new(24, 26, 34, 255);
+        private static readonly Color32 sEmptyColor = new(236, 232, 224, 255);
 
         private readonly GameObject mRoot;
         private readonly Texture2D mTexture;
@@ -49,6 +49,20 @@ namespace PixelCar.Client
             renderer.sortingOrder = 0;
         }
 
+        /// <summary>
+        /// 把盘面铺到指定世界矩形。左下角对齐 origin，格数与世界尺寸解耦。
+        /// </summary>
+        /// <param name="origin">左下角世界坐标</param>
+        /// <param name="width">世界宽度</param>
+        /// <param name="height">世界高度</param>
+        public void Place(Vector3 origin, float width, float height)
+        {
+            mRoot.transform.position = origin;
+            mRoot.transform.localScale = new Vector3(
+                width / MathUtil.MaxFloat(0.0001f, mBoard.Width),
+                height / MathUtil.MaxFloat(0.0001f, mBoard.Height),
+                1f);
+        }
         /// <summary>
         /// 按当前盘面重绘
         /// </summary>

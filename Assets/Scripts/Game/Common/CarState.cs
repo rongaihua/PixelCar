@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
-// Author: WYF
+// Author: rongaihua
 // Date: 2026-10-28
 // Desc: 一辆车的运行态数据
 //---------------------------------------------------------------------------------------
@@ -36,6 +36,26 @@ namespace PixelCar.Common
         /// 所处阶段
         /// </summary>
         public ECarPhase Phase = ECarPhase.Pool;
+
+        /// <summary>
+        /// 朝向。箭头指的方向就是开出停车场的方向。
+        /// </summary>
+        public ECarDir Dir = ECarDir.Up;
+
+        /// <summary>
+        /// 在停车场里占的格：列。
+        /// </summary>
+        public int Col;
+
+        /// <summary>
+        /// 在停车场里占的格：行。和 Col 一起表示车头那一格。
+        /// </summary>
+        public int Row;
+
+        /// <summary>
+        /// 车身占几格。车头在 <see cref="Col"/>/<see cref="Row"/>，车尾沿朝向反方向延伸。
+        /// </summary>
+        public int Span = 2;
 
         /// <summary>
         /// 车道上的位置（世界 x）

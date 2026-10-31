@@ -16,6 +16,8 @@ namespace PixelCar.Client
     {
         private static Sprite sBodySprite;
         private static Sprite sFillSprite;
+        private static Sprite sCarBodySprite;
+        private static Sprite sCarArrowSprite;
 
         /// <summary>
         /// 车身用精灵（中心轴点）
@@ -46,6 +48,43 @@ namespace PixelCar.Client
                 }
 
                 return sFillSprite;
+            }
+        }
+
+        /// <summary>
+        /// 俯视车身精灵（白色，运行时按车辆颜色染色）
+        /// </summary>
+        public static Sprite CarBodySprite
+        {
+            get
+            {
+                if (!sCarBodySprite)
+                {
+                    sCarBodySprite = Resources.Load<Sprite>("PixelCar/car_body");
+                }
+
+                if (!sCarBodySprite)
+                {
+                    sCarBodySprite = BodySprite;
+                }
+
+                return sCarBodySprite;
+            }
+        }
+
+        /// <summary>
+        /// 车上的方向箭头精灵
+        /// </summary>
+        public static Sprite CarArrowSprite
+        {
+            get
+            {
+                if (!sCarArrowSprite)
+                {
+                    sCarArrowSprite = Resources.Load<Sprite>("PixelCar/car_arrow");
+                }
+
+                return sCarArrowSprite;
             }
         }
 

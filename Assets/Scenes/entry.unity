@@ -168,17 +168,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   LevelJson: {fileID: 0}
   TestWidth: 40
-  TestHeight: 44
+  TestHeight: 18
   TestColors: 6
   SmallCar: 50
   MidCar: 100
   LargeCar: 180
   TestShares: {x: 30, y: 40, z: 30}
   LaneCapacity: 5
-  DriveSpeed: 6
-  LoadInterval: 0.07
-  NotFullBehavior: 1
-  StartWindow: {fileID: 268884337}
+  DriveSpeed: 1
+  LoadInterval: 0.05
+  NotFullBehavior: 0
+  StartWindow: {fileID: 237644495}
 --- !u!1 &200000
 GameObject:
   m_ObjectHideFlags: 0
@@ -271,7 +271,7 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 200000}
   m_Enabled: 1
---- !u!1001 &268884335
+--- !u!1001 &237644493
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -368,15 +368,15 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2b3e60cc2f7fb3849800b838c1636b6b, type: 3}
---- !u!224 &268884336 stripped
+--- !u!224 &237644494 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 1353158529309979082, guid: 2b3e60cc2f7fb3849800b838c1636b6b, type: 3}
-  m_PrefabInstance: {fileID: 268884335}
+  m_PrefabInstance: {fileID: 237644493}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &268884337 stripped
+--- !u!114 &237644495 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4534561386914319915, guid: 2b3e60cc2f7fb3849800b838c1636b6b, type: 3}
-  m_PrefabInstance: {fileID: 268884335}
+  m_PrefabInstance: {fileID: 237644493}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -546,7 +546,7 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 268884336}
+  - {fileID: 237644494}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

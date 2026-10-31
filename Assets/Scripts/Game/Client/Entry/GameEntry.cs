@@ -1,4 +1,4 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -24,7 +24,7 @@ namespace PixelCar.Client
         [Header("测试关参数（LevelJson 为空时生效）")]
         public int TestWidth = 40;
 
-        public int TestHeight = 44;
+        public int TestHeight = 18;
 
         public int TestColors = 6;
 
@@ -40,13 +40,14 @@ namespace PixelCar.Client
         [Header("规则参数")]
         public int LaneCapacity = 5;
 
-        public float DriveSpeed = 6f;
+        [Tooltip("车道速度倍率。1 表示空车大约 5 秒开过整张图")]
+        public float DriveSpeed = 1f;
 
         [Tooltip("每装一格之间的间隔（秒）")]
-        public float LoadInterval = 0.07f;
+        public float LoadInterval = 0.05f;
 
         [Tooltip("没装满的车开到出口后怎么处理")]
-        public ENotFullBehavior NotFullBehavior = ENotFullBehavior.LoopOrReturn;
+        public ENotFullBehavior NotFullBehavior = ENotFullBehavior.Loop;
 
         [Header("界面")]
         [Tooltip("开始界面，场景里摆好的实例；留空则直接进游戏")]

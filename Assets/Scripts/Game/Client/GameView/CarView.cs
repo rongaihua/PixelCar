@@ -1,8 +1,8 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
-// Date: 2026-10-28
-// Desc: 单辆车显示
+// Date: 2026-10-29
+// Desc: 单辆车显示（中灰模板换色 + 装载条）
 //---------------------------------------------------------------------------------------
 
 using PixelCar.Common;
@@ -11,7 +11,8 @@ using UnityEngine;
 namespace PixelCar.Client
 {
     /// <summary>
-    /// 单辆车显示
+    /// 单辆车显示。车身用素材包的中灰模板按车辆颜色实时换色，
+    /// 箭头、车窗、描边都保留在模板里，不再单独叠箭头。
     /// </summary>
     public class CarView
     {
@@ -20,9 +21,13 @@ namespace PixelCar.Client
 
         private readonly GameObject mRoot;
         private readonly SpriteRenderer mBody;
-        private readonly Transform mFillTransform;
-        private readonly SpriteRenderer mFill;
+        private readonly Transform mStreamTransform;
+        private readonly SpriteRenderer mStream;
+        private readonly Color mColor;
+        private readonly ECarSize mSize;
 
+        private Vector3 mSpriteSize = Vector3.one;
+        private bool mOnLane;
         private float mLastX;
         private float mFade;
 
@@ -40,22 +45,39 @@ namespace PixelCar.Client
         public CarView(CarState car, Transform parent, Color color)
         {
             Car = car;
+            mColor = color;
+            mSize = SizeOf(car);
 
             mRoot = new GameObject("Car");
             mRoot.transform.SetParent(parent, false);
 
             mBody = mRoot.AddComponent<SpriteRenderer>();
-            mBody.sprite = SpriteLibrary.BodySprite;
-            mBody.color = color;
+            mBody.color = Color.white;
             mBody.sortingOrder = 10;
 
-            var fillObject = new GameObject("Fill");
-            fillObject.transform.SetParent(mRoot.transform, false);
-            mFill = fillObject.AddComponent<SpriteRenderer>();
-            mFill.sprite = SpriteLibrary.FillSprite;
-            mFill.color = new Color(1f, 1f, 1f, 0.5f);
-            mFill.sortingOrder = 11;
-            mFillTransform = fillObject.transform;
+            var streamObject = new GameObject("Stream");
+            streamObject.transform.SetParent(mRoot.transform, false);
+            mStream = streamObject.AddComponent<SpriteRenderer>();
+            mStream.sprite = SpriteLibrary.BodySprite;
+            mStream.sortingOrder = 8;
+            mStream.enabled = false;
+            mStreamTransform = streamObject.transform;
+
+            ApplyDirection(false);
+        }
+
+        /// <summary>
+        /// 切换停车场 / 车道上的朝向
+        /// </summary>
+        /// <param name="onLane">是否在车道上（车道朝右，停车场朝上）</param>
+        public void SetOnLane(bool onLane)
+        {
+            if (mOnLane == onLane && mBody.sprite)
+            {
+                return;
+            }
+
+            ApplyDirection(onLane);
         }
 
         /// <summary>
@@ -88,39 +110,56 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 设置位置与尺寸
+        /// 把车放进一个长宽盒子里，按精灵比例缩放，不拉伸。
         /// </summary>
-        /// <param name="position">世界坐标</param>
-        /// <param name="width">宽度</param>
-        /// <param name="height">高度</param>
-        public void SetPose(Vector3 position, float width, float height)
+        /// <param name="center">车身中心</param>
+        /// <param name="along">车头方向上的长度</param>
+        /// <param name="across">垂直车头方向的宽度</param>
+        /// <param name="vertical">车头是否朝上或朝下</param>
+        public void SetFootprint(Vector3 center, float along, float across, bool vertical)
         {
-            mRoot.transform.position = position;
-            mRoot.transform.localScale = new Vector3(width, height, 1f);
-            // 进度条挂在车身上，本地坐标用单位尺寸，避免和父节点缩放乘两次
-            mFillTransform.localPosition = new Vector3(-0.5f, 0f, 0f);
+            var spriteAlong = vertical ? mSpriteSize.y : mSpriteSize.x;
+            var spriteAcross = vertical ? mSpriteSize.x : mSpriteSize.y;
+            var scale = MathUtil.MinFloat(
+                along / MathUtil.MaxFloat(0.0001f, spriteAlong),
+                across / MathUtil.MaxFloat(0.0001f, spriteAcross));
+
+            mRoot.transform.position = center;
+            mRoot.transform.localScale = new Vector3(scale, scale, 1f);
         }
 
         /// <summary>
-        /// 设置装载进度条
+        /// 吸色时从车顶拉一条色带到像素图底边。不吸时关掉。
         /// </summary>
-        /// <param name="fill">进度 [0,1]</param>
-        /// <param name="alpha">不透明度</param>
-        public void SetFill(float fill, float alpha)
+        /// <param name="visible">是否在吸</param>
+        /// <param name="topY">像素图底边的世界高度</param>
+        /// <param name="color">色带颜色</param>
+        public void SetStream(bool visible, float topY, Color color)
         {
-            mFillTransform.localScale = new Vector3(MathUtil.MaxFloat(0.001f, fill), 1f, 1f);
-            mFill.color = new Color(1f, 1f, 1f, 0.5f * alpha);
+            mStream.enabled = visible;
+            if (!visible)
+            {
+                return;
+            }
+
+            var scale = MathUtil.MaxFloat(0.0001f, mRoot.transform.localScale.y);
+            var center = mRoot.transform.position;
+            var height = MathUtil.MaxFloat(0.05f, topY - center.y);
+            mStreamTransform.localPosition = new Vector3(0f, height * 0.5f / scale, 0f);
+            mStreamTransform.localScale = new Vector3(0.14f / scale, height / scale, 1f);
+            color.a = 0.8f;
+            mStream.color = color;
         }
 
         /// <summary>
-        /// 设置车身颜色
+        /// 设置整体色调。车身颜色已经在精灵里，这里只做压暗之类的整体调整。
         /// </summary>
-        /// <param name="color">颜色</param>
+        /// <param name="tint">乘算颜色，正常传白色</param>
         /// <param name="alpha">不透明度</param>
-        public void SetTint(Color color, float alpha)
+        public void SetTint(Color tint, float alpha)
         {
-            color.a = alpha;
-            mBody.color = color;
+            tint.a = alpha;
+            mBody.color = tint;
         }
 
         /// <summary>
@@ -141,6 +180,44 @@ namespace PixelCar.Client
         public void Destroy()
         {
             Object.Destroy(mRoot);
+        }
+
+        /// <summary>
+        /// 应用朝向对应的模板
+        /// </summary>
+        /// <param name="onLane">是否在车道上</param>
+        private void ApplyDirection(bool onLane)
+        {
+            mOnLane = onLane;
+            var dir = onLane ? ECarDir.Right : Car.Dir;
+            var sprite = CarSpriteFactory.Get(mSize, dir, mColor);
+            if (!sprite)
+            {
+                return;
+            }
+
+            mBody.sprite = sprite;
+            mSpriteSize = sprite.bounds.size;
+        }
+
+        /// <summary>
+        /// 按载量判尺寸
+        /// </summary>
+        /// <param name="car">车辆</param>
+        /// <returns>尺寸</returns>
+        private static ECarSize SizeOf(CarState car)
+        {
+            if (car.Capacity <= 60)
+            {
+                return ECarSize.Small;
+            }
+
+            if (car.Capacity <= 120)
+            {
+                return ECarSize.Mid;
+            }
+
+            return ECarSize.Big;
         }
     }
 }

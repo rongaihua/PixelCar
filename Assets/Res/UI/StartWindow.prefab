@@ -311,7 +311,6 @@ GameObject:
   - component: {fileID: 1945655617793484558}
   - component: {fileID: 8636293247247775874}
   - component: {fileID: 1408677950141812425}
-  - component: {fileID: 8318821324967525174}
   m_Layer: 0
   m_Name: HeartText
   m_TagString: Untagged
@@ -359,7 +358,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.29, g: 0.16, b: 0.06, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -368,7 +367,7 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 12800000, guid: a4e9fb861de5e5e45879f82e32c9dbde, type: 3}
-    m_FontSize: 38
+    m_FontSize: 40
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
@@ -380,21 +379,6 @@ MonoBehaviour:
     m_VerticalOverflow: 1
     m_LineSpacing: 1
   m_Text: 1
---- !u!114 &8318821324967525174
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2486134135180181843}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.66, g: 0.14, b: 0.1, a: 1}
-  m_EffectDistance: {x: 2, y: -2}
-  m_UseGraphicAlpha: 1
 --- !u!1 &3587928321088254209
 GameObject:
   m_ObjectHideFlags: 0
@@ -779,7 +763,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d12fda8b4ba21f8419ebba8a4fddfa4f, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 4c6e8a2b1d3f45c7e90a2b4d6f8c1e35, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1318,7 +1302,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 128.57143, y: -123.42857}
-  m_SizeDelta: {x: 169.71428, y: 169.71428}
+  m_SizeDelta: {x: 149.14285, y: 149.14285}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8342349432466248161
 CanvasRenderer:
@@ -1349,7 +1333,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 8a1c3e5b7d9f42c6b80d6a4e2c1f9b3d, type: 3}
-  m_Type: 1
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
