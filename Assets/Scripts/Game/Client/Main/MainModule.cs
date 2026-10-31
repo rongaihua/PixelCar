@@ -265,8 +265,7 @@ namespace PixelCar.Client
             var hudObject = new GameObject("Hud");
             hudObject.transform.SetParent(mRoot.transform, false);
             mHud = hudObject.AddComponent<HudWindow>();
-            mHud.Bind(this);
-            hudObject.AddComponent<BoosterBar>();
+            mHud.Bind(this, Game.MainCamera);
 
             mBoardView.Refresh();
             mLastPoolCount = mSim.Pool.Count;

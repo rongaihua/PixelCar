@@ -1,169 +1,287 @@
 //---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
-// Date: 2026-10-28
-// Desc: HUD 与失败/过关弹窗
+// Date: 2026-10-31
+// Desc: 游戏内 HUD（UGUI，Update 驱动）
 //---------------------------------------------------------------------------------------
 
+using System.Collections.Generic;
 using PixelCar.Common;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PixelCar.Client
 {
     /// <summary>
-    /// HUD 与失败/过关弹窗
+    /// 游戏内 HUD。全部用 UGUI 搭，每帧在 <see cref="Update"/> 里刷新，
+    /// 不再使用 OnGUI。包含：顶部状态、车道徽章、装载百分比、底部道具栏、提示与结算弹窗。
     /// </summary>
     public class HudWindow : MonoBehaviour
     {
-        private MainModule mModule;
-        private static readonly string[] sPercents = BuildPercents();
+        private const float DesignWidth = 1080f;
+        private const float DesignHeight = 1920f;
+        private const int PercentPoolSize = 20;
+        private const float PercentRise = 0.55f;
 
-        private GUIStyle mLabelStyle;
-        private GUIStyle mBadgeStyle;
-        private GUIStyle mPercentStyle;
-        private GUIStyle mOverlayTitleStyle;
-        private GUIStyle mOverlayBodyStyle;
-        private float mStyleScale = -1f;
+        private static readonly string[] sBoosterLabels = { "磁铁", "钩子", "刷新" };
+
+        private readonly List<Text> mPercentPool = new List<Text>();
+        private readonly List<RectTransform> mBoosterCards = new List<RectTransform>();
+
+        private MainModule mModule;
+        private Camera mCamera;
+        private Font mFont;
+        private RectTransform mCanvasRect;
+
+        private Text mStatusText;
+        private RectTransform mBadgeRect;
+        private Text mBadgeText;
+        private Text mMessageText;
+        private GameObject mOverlay;
+        private Text mOverlayTitle;
+        private Text mOverlayBody;
         private bool mRestartRequested;
-        private string mBadgeText = "0/5";
-        private int mBadgeCount = -1;
-        private int mBadgeCapacity = -1;
 
         /// <summary>
-        /// 绑定主模块
+        /// 绑定主模块并搭好界面。
         /// </summary>
         /// <param name="module">主模块</param>
-        public void Bind(MainModule module)
+        /// <param name="camera">主相机，用于世界坐标转屏幕</param>
+        public void Bind(MainModule module, Camera camera)
         {
             mModule = module;
+            mCamera = camera;
+            mFont = Resources.Load<Font>("PixelCar/fonts/game");
+            if (!mFont)
+            {
+                mFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            }
+
+            BuildCanvas();
+            BuildStatus();
+            BuildBadge();
+            BuildPercents();
+            BuildBoosters();
+            BuildMessage();
+            BuildOverlay();
         }
 
         /// <summary>
-        /// 每帧
+        /// 每帧刷新。
         /// </summary>
         private void Update()
-        {
-            if (!mRestartRequested)
-            {
-                return;
-            }
-
-            mRestartRequested = false;
-            if (mModule != null)
-            {
-                mModule.Restart();
-            }
-        }
-
-        /// <summary>
-        /// 绘制
-        /// </summary>
-        private void OnGUI()
         {
             if (mModule == null || mModule.Sim == null)
             {
                 return;
             }
 
-            var scale = MathUtil.Clamp(Screen.height / 900f, 0.75f, 2f);
-            EnsureStyles(scale);
-            DrawHud(scale);
-            DrawOverlay(scale);
-        }
-
-        /// <summary>
-        /// 按分辨率缩放构建样式
-        /// </summary>
-        /// <param name="scale">缩放</param>
-        private void EnsureStyles(float scale)
-        {
-            if (MathUtil.MaxFloat(mStyleScale, scale) - mStyleScale < 0.01f)
+            if (mRestartRequested)
             {
+                mRestartRequested = false;
+                mModule.Restart();
                 return;
             }
 
-            mStyleScale = scale;
-
-            mLabelStyle = new GUIStyle(GUI.skin.label);
-            mLabelStyle.fontSize = MathUtil.RoundToInt(15f * scale);
-            mLabelStyle.normal.textColor = new Color(0.8f, 0.85f, 0.95f);
-
-            mBadgeStyle = new GUIStyle(GUI.skin.box);
-            mBadgeStyle.fontSize = MathUtil.RoundToInt(22f * scale);
-            mBadgeStyle.alignment = TextAnchor.MiddleCenter;
-            mBadgeStyle.fontStyle = FontStyle.Bold;
-            mBadgeStyle.normal.textColor = Color.white;
-
-            mPercentStyle = new GUIStyle(GUI.skin.label);
-            mPercentStyle.fontSize = MathUtil.RoundToInt(14f * scale);
-            mPercentStyle.alignment = TextAnchor.MiddleCenter;
-            mPercentStyle.fontStyle = FontStyle.Bold;
-            mPercentStyle.normal.textColor = new Color(1f, 0.96f, 0.86f);
-
-            mOverlayTitleStyle = new GUIStyle(GUI.skin.label);
-            mOverlayTitleStyle.fontSize = MathUtil.RoundToInt(34f * scale);
-            mOverlayTitleStyle.alignment = TextAnchor.MiddleCenter;
-
-            mOverlayBodyStyle = new GUIStyle(GUI.skin.label);
-            mOverlayBodyStyle.fontSize = MathUtil.RoundToInt(17f * scale);
-            mOverlayBodyStyle.alignment = TextAnchor.MiddleCenter;
-            mOverlayBodyStyle.wordWrap = true;
-            mOverlayBodyStyle.normal.textColor = Color.white;
+            RefreshStatus();
+            RefreshBadge();
+            RefreshPercents();
+            RefreshMessage();
+            RefreshOverlay();
         }
 
         /// <summary>
-        /// 车道名额和每辆车上的百分比
+        /// 建画布。
         /// </summary>
-        /// <param name="scale">缩放</param>
-        private void DrawHud(float scale)
+        private void BuildCanvas()
         {
-            var camera = Camera.main;
-            if (!camera)
-            {
-                return;
-            }
+            var canvasObject = new GameObject("HudCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvasObject.transform.SetParent(transform, false);
 
-            DrawBadge(camera, scale);
-            DrawPercents(camera, scale);
+            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
 
-            if (mModule.MessageTimer > 0f)
+            var scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(DesignWidth, DesignHeight);
+            scaler.matchWidthOrHeight = 1f;
+
+            mCanvasRect = (RectTransform)canvasObject.transform;
+        }
+
+        /// <summary>
+        /// 顶部状态行。
+        /// </summary>
+        private void BuildStatus()
+        {
+            mStatusText = CreateText("Status", mCanvasRect, 30, TextAnchor.UpperLeft, Color.white);
+            var rect = mStatusText.rectTransform;
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.sizeDelta = new Vector2(760f, 60f);
+            rect.anchoredPosition = new Vector2(24f, -20f);
+        }
+
+        /// <summary>
+        /// 车道数量徽章。
+        /// </summary>
+        private void BuildBadge()
+        {
+            var panel = CreatePanel("Badge", mCanvasRect, new Color(0.18f, 0.45f, 0.86f, 0.95f));
+            mBadgeRect = panel.rectTransform;
+            mBadgeRect.sizeDelta = new Vector2(132f, 54f);
+
+            mBadgeText = CreateText("BadgeText", mBadgeRect, 30, TextAnchor.MiddleCenter, Color.white);
+            Stretch(mBadgeText.rectTransform);
+        }
+
+        /// <summary>
+        /// 百分比文字池。
+        /// </summary>
+        private void BuildPercents()
+        {
+            for (var i = 0; i < PercentPoolSize; ++i)
             {
-                GUI.Label(new Rect(12f * scale, Screen.height - 36f * scale, Screen.width - 24f * scale, 26f * scale), mModule.Message, mLabelStyle);
+                var text = CreateText($"Percent{i}", mCanvasRect, 26, TextAnchor.MiddleCenter, new Color(1f, 0.96f, 0.86f));
+                text.rectTransform.sizeDelta = new Vector2(120f, 40f);
+                text.gameObject.SetActive(false);
+                mPercentPool.Add(text);
             }
         }
 
         /// <summary>
-        /// 路中央的 n/5
+        /// 底部道具栏。
         /// </summary>
-        /// <param name="camera">主相机</param>
-        /// <param name="scale">缩放</param>
-        private void DrawBadge(Camera camera, float scale)
+        private void BuildBoosters()
         {
-            var screen = camera.WorldToScreenPoint(mModule.BadgeWorld);
-            if (screen.z < 0f)
+            for (var i = 0; i < sBoosterLabels.Length; ++i)
             {
-                return;
-            }
+                var card = CreatePanel($"Booster{i}", mCanvasRect, new Color(0.93f, 0.94f, 0.97f, 0.96f));
+                var rect = card.rectTransform;
+                rect.anchorMin = new Vector2(0f, 0f);
+                rect.anchorMax = new Vector2(0f, 0f);
+                rect.pivot = new Vector2(0f, 0f);
+                rect.sizeDelta = new Vector2(300f, 170f);
+                rect.anchoredPosition = new Vector2(30f + i * 330f, 34f);
+                mBoosterCards.Add(rect);
 
-            var width = 92f * scale;
-            var height = 36f * scale;
-            var rect = new Rect(screen.x - width * 0.5f, Screen.height - screen.y - height * 0.5f, width, height);
-            var old = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(0.18f, 0.45f, 0.86f, 0.94f);
-            GUI.Box(rect, BadgeText(), mBadgeStyle);
-            GUI.backgroundColor = old;
+                var label = CreateText("Label", rect, 30, TextAnchor.LowerCenter, new Color(0.28f, 0.30f, 0.36f));
+                label.text = sBoosterLabels[i];
+                label.rectTransform.anchorMin = new Vector2(0f, 0f);
+                label.rectTransform.anchorMax = new Vector2(1f, 0f);
+                label.rectTransform.pivot = new Vector2(0.5f, 0f);
+                label.rectTransform.sizeDelta = new Vector2(0f, 50f);
+                label.rectTransform.anchoredPosition = new Vector2(0f, 18f);
+
+                var plus = CreatePanel("Plus", rect, new Color(0.48f, 0.80f, 0.18f, 1f));
+                var plusRect = plus.rectTransform;
+                plusRect.anchorMin = new Vector2(1f, 1f);
+                plusRect.anchorMax = new Vector2(1f, 1f);
+                plusRect.pivot = new Vector2(1f, 1f);
+                plusRect.sizeDelta = new Vector2(46f, 46f);
+                plusRect.anchoredPosition = new Vector2(10f, 10f);
+
+                var plusText = CreateText("PlusText", plusRect, 28, TextAnchor.MiddleCenter, Color.white);
+                plusText.text = "+";
+                Stretch(plusText.rectTransform);
+            }
         }
 
         /// <summary>
-        /// 车道上每辆车下面的装载百分比
+        /// 提示行。
         /// </summary>
-        /// <param name="camera">主相机</param>
-        /// <param name="scale">缩放</param>
-        private void DrawPercents(Camera camera, float scale)
+        private void BuildMessage()
         {
+            mMessageText = CreateText("Message", mCanvasRect, 26, TextAnchor.MiddleCenter, Color.white);
+            var rect = mMessageText.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(900f, 60f);
+            rect.anchoredPosition = new Vector2(0f, 230f);
+        }
+
+        /// <summary>
+        /// 结算弹窗。
+        /// </summary>
+        private void BuildOverlay()
+        {
+            var mask = CreatePanel("Overlay", mCanvasRect, new Color(0f, 0f, 0f, 0.62f));
+            Stretch(mask.rectTransform);
+            mOverlay = mask.gameObject;
+
+            var box = CreatePanel("Box", mask.rectTransform, new Color(0.98f, 0.98f, 0.99f, 1f));
+            var boxRect = box.rectTransform;
+            boxRect.anchorMin = new Vector2(0.5f, 0.5f);
+            boxRect.anchorMax = new Vector2(0.5f, 0.5f);
+            boxRect.pivot = new Vector2(0.5f, 0.5f);
+            boxRect.sizeDelta = new Vector2(840f, 620f);
+
+            mOverlayTitle = CreateText("Title", boxRect, 60, TextAnchor.UpperCenter, new Color(0.2f, 0.22f, 0.28f));
+            var titleRect = mOverlayTitle.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.sizeDelta = new Vector2(0f, 90f);
+            titleRect.anchoredPosition = new Vector2(0f, -50f);
+
+            mOverlayBody = CreateText("Body", boxRect, 32, TextAnchor.UpperCenter, new Color(0.3f, 0.32f, 0.4f));
+            var bodyRect = mOverlayBody.rectTransform;
+            bodyRect.anchorMin = new Vector2(0f, 1f);
+            bodyRect.anchorMax = new Vector2(1f, 1f);
+            bodyRect.pivot = new Vector2(0.5f, 1f);
+            bodyRect.sizeDelta = new Vector2(-80f, 260f);
+            bodyRect.anchoredPosition = new Vector2(0f, -150f);
+
+            var button = CreatePanel("Restart", boxRect, new Color(0.49f, 0.83f, 0.13f, 1f));
+            var buttonRect = button.rectTransform;
+            buttonRect.anchorMin = new Vector2(0.5f, 0f);
+            buttonRect.anchorMax = new Vector2(0.5f, 0f);
+            buttonRect.pivot = new Vector2(0.5f, 0f);
+            buttonRect.sizeDelta = new Vector2(380f, 110f);
+            buttonRect.anchoredPosition = new Vector2(0f, 46f);
+
+            var buttonImage = button.gameObject.AddComponent<Button>();
+            buttonImage.targetGraphic = button;
+            buttonImage.onClick.AddListener(OnRestartClicked);
+
+            var label = CreateText("Label", buttonRect, 40, TextAnchor.MiddleCenter, Color.white);
+            label.text = "重开本关";
+            Stretch(label.rectTransform);
+
+            mOverlay.SetActive(false);
+        }
+
+        /// <summary>
+        /// 刷新顶部状态。
+        /// </summary>
+        private void RefreshStatus()
+        {
+            var board = mModule.Sim.Board;
+            var taken = mModule.InitialCells - board.TotalRemaining;
+            var percent = mModule.InitialCells <= 0 ? 0 : MathUtil.RoundToInt(taken * 100f / mModule.InitialCells);
+            mStatusText.text = $"车道 {mModule.Sim.Lane.Count}/{mModule.LaneCapacity}    剩余 {board.TotalRemaining} 格    {percent}%";
+        }
+
+        /// <summary>
+        /// 刷新徽章位置与文字。
+        /// </summary>
+        private void RefreshBadge()
+        {
+            mBadgeRect.anchoredPosition = ToCanvas(mModule.BadgeWorld);
+            mBadgeText.text = $"{mModule.Sim.Lane.Count}/{mModule.LaneCapacity}";
+        }
+
+        /// <summary>
+        /// 刷新百分比文字。
+        /// </summary>
+        private void RefreshPercents()
+        {
+            var used = 0;
+
             var lane = mModule.Sim.Lane;
-            var width = 64f * scale;
-            var height = 22f * scale;
             for (var i = 0; i < lane.Count; ++i)
             {
                 var car = lane[i];
@@ -172,132 +290,191 @@ namespace PixelCar.Client
                     continue;
                 }
 
-                var screen = camera.WorldToScreenPoint(mModule.LanePercentWorld(car));
-                if (screen.z < 0f)
-                {
-                    continue;
-                }
-
-                var percent = MathUtil.Clamp(MathUtil.RoundToInt(car.Fill * 100f), 0, 100);
-                var rect = new Rect(screen.x - width * 0.5f, Screen.height - screen.y - height * 0.5f, width, height);
-                GUI.Label(rect, sPercents[percent], mPercentStyle);
+                used = PlacePercent(used, mModule.LanePercentWorld(car), car.Fill);
             }
 
-            // 停车场里被退回、已经装了一部分的尾车也要显示进度
             var pool = mModule.Sim.Pool;
             for (var i = 0; i < pool.Count; ++i)
             {
-                var parked = pool[i];
-                if (parked.Fill <= 0.001f)
+                var car = pool[i];
+                if (car.Fill <= 0.001f)
                 {
                     continue;
                 }
 
                 Vector3 world;
-                if (!mModule.TryGetCarWorld(parked, out world))
+                if (!mModule.TryGetCarWorld(car, out world))
                 {
                     continue;
                 }
 
-                var parkedScreen = camera.WorldToScreenPoint(world + new Vector3(0f, 0.55f, 0f));
-                if (parkedScreen.z < 0f)
+                used = PlacePercent(used, world + new Vector3(0f, PercentRise, 0f), car.Fill);
+            }
+
+            for (var i = used; i < mPercentPool.Count; ++i)
+            {
+                if (mPercentPool[i].gameObject.activeSelf)
                 {
-                    continue;
+                    mPercentPool[i].gameObject.SetActive(false);
                 }
-
-                var parkedPercent = MathUtil.Clamp(MathUtil.RoundToInt(parked.Fill * 100f), 0, 100);
-                var parkedRect = new Rect(parkedScreen.x - width * 0.5f, Screen.height - parkedScreen.y - height * 0.5f, width, height);
-                GUI.Label(parkedRect, sPercents[parkedPercent], mPercentStyle);
             }
         }
 
         /// <summary>
-        /// 名额文字。人数或容量变了才重新拼。
+        /// 把第 index 个百分比文字摆到指定世界坐标上方。
         /// </summary>
-        /// <returns>例如 2/5</returns>
-        private string BadgeText()
+        /// <param name="index">池下标</param>
+        /// <param name="world">世界坐标</param>
+        /// <param name="fill">进度</param>
+        /// <returns>下一个可用下标</returns>
+        private int PlacePercent(int index, Vector3 world, float fill)
         {
-            var count = mModule.Sim.Lane.Count;
-            var capacity = mModule.LaneCapacity;
-            if (count == mBadgeCount && capacity == mBadgeCapacity)
+            if (index >= mPercentPool.Count)
             {
-                return mBadgeText;
+                return index;
             }
 
-            mBadgeCount = count;
-            mBadgeCapacity = capacity;
-            mBadgeText = count.ToString() + "/" + capacity.ToString();
-            return mBadgeText;
-        }
-
-        /// <summary>
-        /// 0% 到 100% 的文字，绘制时不再拼字符串。
-        /// </summary>
-        /// <returns>百分比文字</returns>
-        private static string[] BuildPercents()
-        {
-            var values = new string[101];
-            for (var i = 0; i < values.Length; ++i)
+            var text = mPercentPool[index];
+            text.text = $"{MathUtil.Clamp(MathUtil.RoundToInt(fill * 100f), 0, 100)}%";
+            text.rectTransform.anchoredPosition = ToCanvas(world);
+            if (!text.gameObject.activeSelf)
             {
-                values[i] = i.ToString() + "%";
+                text.gameObject.SetActive(true);
             }
 
-            return values;
+            return index + 1;
         }
 
         /// <summary>
-        /// 失败 / 过关弹窗
+        /// 刷新提示行。
         /// </summary>
-        /// <param name="scale">缩放</param>
-        private void DrawOverlay(float scale)
+        private void RefreshMessage()
         {
-            if (!mModule.Failed && !mModule.Cleared)
+            var visible = mModule.MessageTimer > 0f && !string.IsNullOrEmpty(mModule.Message);
+            if (mMessageText.gameObject.activeSelf != visible)
+            {
+                mMessageText.gameObject.SetActive(visible);
+            }
+
+            if (visible)
+            {
+                mMessageText.text = mModule.Message;
+            }
+        }
+
+        /// <summary>
+        /// 刷新结算弹窗。
+        /// </summary>
+        private void RefreshOverlay()
+        {
+            var show = mModule.Failed || mModule.Cleared;
+            if (mOverlay.activeSelf != show)
+            {
+                mOverlay.SetActive(show);
+            }
+
+            if (!show)
             {
                 return;
             }
 
-            var width = 470f * scale;
-            var height = 262f * scale;
-            var rect = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
-
-            var oldColor = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.62f);
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = oldColor;
-
-            GUI.Box(rect, "");
-
-            mOverlayTitleStyle.normal.textColor = mModule.Cleared ? new Color(0.62f, 0.95f, 0.62f) : new Color(1f, 0.5f, 0.45f);
-            GUI.Label(new Rect(rect.x + 16f * scale, rect.y + 16f * scale, width - 32f * scale, 46f * scale), mModule.Cleared ? "过关！" : "本关失败", mOverlayTitleStyle);
-
-            var body = BuildOverlayBody();
-            GUI.Label(new Rect(rect.x + 28f * scale, rect.y + 72f * scale, width - 56f * scale, 104f * scale), body, mOverlayBodyStyle);
-
-            var buttonWidth = 190f * scale;
-            var buttonHeight = 46f * scale;
-            var buttonRect = new Rect(rect.x + (width - buttonWidth) * 0.5f, rect.y + height - buttonHeight - 24f * scale, buttonWidth, buttonHeight);
-            if (GUI.Button(buttonRect, "重开本关"))
+            var board = mModule.Sim.Board;
+            if (mModule.Cleared)
             {
-                ButtonSoundListener.PlayClick();
-                mRestartRequested = true;
+                mOverlayTitle.text = "过关！";
+                mOverlayBody.text = $"全部色块都运走了，共 {mModule.Sim.CarsCompleted} 辆车。";
+                return;
             }
+
+            var taken = mModule.InitialCells - board.TotalRemaining;
+            var percent = MathUtil.RoundToInt(taken * 100f / MathUtil.Max(1, mModule.InitialCells));
+            mOverlayTitle.text = "本关失败";
+            mOverlayBody.text = $"车道上的车都等不到自己的颜色，待命区也没有车能拉到色块。\n\n已取 {percent}%　还剩 {board.TotalRemaining} 格";
         }
 
         /// <summary>
-        /// 弹窗正文
+        /// 世界坐标转画布坐标。
         /// </summary>
-        /// <returns>正文</returns>
-        private string BuildOverlayBody()
+        /// <param name="world">世界坐标</param>
+        /// <returns>画布内的局部坐标</returns>
+        private Vector2 ToCanvas(Vector3 world)
         {
-            if (mModule.Cleared)
+            if (!mCamera)
             {
-                return $"全部色块都运走了，共 {mModule.Sim.CarsCompleted} 辆车。";
+                return Vector2.zero;
             }
 
-            var board = mModule.Sim.Board;
-            var taken = mModule.InitialCells - board.TotalRemaining;
-            var percent = 100f * taken / MathUtil.Max(1, mModule.InitialCells);
-            return $"车道上的车都等不到自己的颜色，待命区也没有车能拉到色块。\n\n已取 {percent:F0}%　还剩 {board.TotalRemaining} 格";
+            var screen = mCamera.WorldToScreenPoint(world);
+            Vector2 local;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(mCanvasRect, screen, null, out local);
+            return local;
+        }
+
+        /// <summary>
+        /// 重开按钮。
+        /// </summary>
+        private void OnRestartClicked()
+        {
+            mRestartRequested = true;
+        }
+
+        /// <summary>
+        /// 建一段文字。
+        /// </summary>
+        /// <param name="name">名字</param>
+        /// <param name="parent">父节点</param>
+        /// <param name="size">字号</param>
+        /// <param name="anchor">对齐</param>
+        /// <param name="color">颜色</param>
+        /// <returns>文字</returns>
+        private Text CreateText(string name, Transform parent, int size, TextAnchor anchor, Color color)
+        {
+            var gameObject = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)gameObject.transform;
+            rect.SetParent(parent, false);
+
+            var text = gameObject.AddComponent<Text>();
+            text.font = mFont;
+            text.fontSize = size;
+            text.alignment = anchor;
+            text.color = color;
+            text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            return text;
+        }
+
+        /// <summary>
+        /// 建一张九宫格圆角面板。
+        /// </summary>
+        /// <param name="name">名字</param>
+        /// <param name="parent">父节点</param>
+        /// <param name="color">颜色</param>
+        /// <returns>图片</returns>
+        private static Image CreatePanel(string name, Transform parent, Color color)
+        {
+            var gameObject = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)gameObject.transform;
+            rect.SetParent(parent, false);
+
+            var image = gameObject.AddComponent<Image>();
+            image.sprite = SpriteLibrary.PanelSprite;
+            image.type = Image.Type.Sliced;
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>
+        /// 铺满父节点。
+        /// </summary>
+        /// <param name="rect">目标</param>
+        private static void Stretch(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
     }
 }

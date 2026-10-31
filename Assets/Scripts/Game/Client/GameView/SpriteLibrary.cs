@@ -1,4 +1,4 @@
-//---------------------------------------------------------------------------------------
+﻿//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -18,6 +18,7 @@ namespace PixelCar.Client
         private static Sprite sFillSprite;
         private static Sprite sCarBodySprite;
         private static Sprite sCarArrowSprite;
+        private static Sprite sPanelSprite;
 
         /// <summary>
         /// 车身用精灵（中心轴点）
@@ -89,10 +90,55 @@ namespace PixelCar.Client
         }
 
         /// <summary>
+        /// 圆角面板（九宫格），白底，用时染色。
+        /// </summary>
+        public static Sprite PanelSprite
+        {
+            get
+            {
+                if (!sPanelSprite)
+                {
+                    sPanelSprite = CreateRounded(64, 20);
+                }
+
+                return sPanelSprite;
+            }
+        }
+        /// <summary>
         /// 用白色贴图生成 1x1 精灵
         /// </summary>
         /// <param name="pivot">轴点</param>
         /// <returns>精灵</returns>
+        /// <summary>
+        /// 生成一张圆角九宫格精灵。
+        /// </summary>
+        /// <param name="size">边长</param>
+        /// <param name="radius">圆角半径</param>
+        /// <returns>精灵</returns>
+        private static Sprite CreateRounded(int size, int radius)
+        {
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            var pixels = new Color32[size * size];
+            for (var y = 0; y < size; ++y)
+            {
+                for (var x = 0; x < size; ++x)
+                {
+                    var dx = Mathf.Max(0, Mathf.Max(radius - x, x - (size - 1 - radius)));
+                    var dy = Mathf.Max(0, Mathf.Max(radius - y, y - (size - 1 - radius)));
+                    var distance = Mathf.Sqrt(dx * dx + dy * dy);
+                    var alpha = Mathf.Clamp01(radius - distance + 1f);
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(alpha * 255f));
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        }
         private static Sprite Create(Vector2 pivot)
         {
             return Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), pivot, 1f);
