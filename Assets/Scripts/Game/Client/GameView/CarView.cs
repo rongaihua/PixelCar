@@ -177,6 +177,10 @@ namespace PixelCar.Client
         /// <summary>
         /// 销毁
         /// </summary>
+        /// <summary>
+        /// 当前世界坐标
+        /// </summary>
+        public Vector3 Position => mRoot.transform.position;
         public void Destroy()
         {
             Object.Destroy(mRoot);

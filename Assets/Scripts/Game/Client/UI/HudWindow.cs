@@ -182,6 +182,33 @@ namespace PixelCar.Client
                 var rect = new Rect(screen.x - width * 0.5f, Screen.height - screen.y - height * 0.5f, width, height);
                 GUI.Label(rect, sPercents[percent], mPercentStyle);
             }
+
+            // 停车场里被退回、已经装了一部分的尾车也要显示进度
+            var pool = mModule.Sim.Pool;
+            for (var i = 0; i < pool.Count; ++i)
+            {
+                var parked = pool[i];
+                if (parked.Fill <= 0.001f)
+                {
+                    continue;
+                }
+
+                Vector3 world;
+                if (!mModule.TryGetCarWorld(parked, out world))
+                {
+                    continue;
+                }
+
+                var parkedScreen = camera.WorldToScreenPoint(world + new Vector3(0f, 0.55f, 0f));
+                if (parkedScreen.z < 0f)
+                {
+                    continue;
+                }
+
+                var parkedPercent = MathUtil.Clamp(MathUtil.RoundToInt(parked.Fill * 100f), 0, 100);
+                var parkedRect = new Rect(parkedScreen.x - width * 0.5f, Screen.height - parkedScreen.y - height * 0.5f, width, height);
+                GUI.Label(parkedRect, sPercents[parkedPercent], mPercentStyle);
+            }
         }
 
         /// <summary>

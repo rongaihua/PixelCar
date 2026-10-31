@@ -70,6 +70,29 @@ namespace PixelCar.Client
         /// <summary>
         /// 车道名额牌的世界坐标，画在路中央。
         /// </summary>
+        /// <summary>
+        /// 取某辆车当前的世界坐标，停车场里的车也适用。
+        /// </summary>
+        /// <param name="car">车辆</param>
+        /// <param name="world">世界坐标</param>
+        /// <returns>取到时为 true</returns>
+        public bool TryGetCarWorld(CarState car, out Vector3 world)
+        {
+            world = Vector3.zero;
+            if (car == null)
+            {
+                return false;
+            }
+
+            CarView view;
+            if (!mCarViews.TryGetValue(car, out view) || view == null)
+            {
+                return false;
+            }
+
+            world = view.Position;
+            return true;
+        }
         public Vector3 BadgeWorld => mBadgeWorld;
 
         /// <summary>
