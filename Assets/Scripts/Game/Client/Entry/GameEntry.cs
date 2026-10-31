@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -50,6 +50,9 @@ namespace PixelCar.Client
         public ENotFullBehavior NotFullBehavior = ENotFullBehavior.Loop;
 
         [Header("界面")]
+        [Tooltip("UI 字体，直接引用 libra 包里的字体资产，不拷贝")]
+        public Font UiFont;
+
         [Tooltip("开始界面，场景里摆好的实例；留空则直接进游戏")]
         public StartWindow StartWindow;
 

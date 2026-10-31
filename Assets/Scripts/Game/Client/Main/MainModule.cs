@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -265,7 +265,7 @@ namespace PixelCar.Client
             var hudObject = new GameObject("Hud");
             hudObject.transform.SetParent(mRoot.transform, false);
             mHud = hudObject.AddComponent<HudWindow>();
-            mHud.Bind(this, Game.MainCamera);
+            mHud.Bind(this, Game.MainCamera, Game.UiFont);
 
             mBoardView.Refresh();
             mLastPoolCount = mSim.Pool.Count;

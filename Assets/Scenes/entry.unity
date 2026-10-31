@@ -168,6 +168,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   LevelJson: {fileID: 0}
   TestWidth: 80
+  UiFont: {fileID: 12800000, guid: a4e9fb861de5e5e45879f82e32c9dbde, type: 3}
   TestHeight: 50
   TestColors: 6
   SmallCar: 50

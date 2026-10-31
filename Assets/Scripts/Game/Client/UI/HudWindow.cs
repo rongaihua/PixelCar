@@ -47,11 +47,11 @@ namespace PixelCar.Client
         /// </summary>
         /// <param name="module">主模块</param>
         /// <param name="camera">主相机，用于世界坐标转屏幕</param>
-        public void Bind(MainModule module, Camera camera)
+        public void Bind(MainModule module, Camera camera, Font uiFont)
         {
             mModule = module;
             mCamera = camera;
-            mFont = Resources.Load<Font>("PixelCar/fonts/game");
+            mFont = uiFont;
             if (!mFont)
             {
                 mFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
