@@ -22,9 +22,9 @@ namespace PixelCar.Client
         public TextAsset LevelJson;
 
         [Header("测试关参数（LevelJson 为空时生效）")]
-        public int TestWidth = 40;
+        public int TestWidth = 80;
 
-        public int TestHeight = 18;
+        public int TestHeight = 50;
 
         public int TestColors = 6;
 
