@@ -25,6 +25,7 @@ namespace PixelCar.Client
         private PixelBoardLevel mLevel;
         private PixelCarSim mSim;
         private Color32[] mPalette;
+        private GameCanvas mCanvas;
         private BoardView mBoardView;
         private HudWindow mHud;
         private GameObject mRoot;
@@ -245,12 +246,16 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 建立场景物体
+        /// 建立场景物体。整个游戏画面是一张 UGUI 画布：
+        /// 底图 / 色块盘 / 色带是画布里的纯色 Image，车辆是画布里带精灵的 Image，
+        /// 不用 SpriteRenderer。
         /// </summary>
         private void BuildScene()
         {
             mRoot = new GameObject("GameRoot");
             mRoot.transform.SetParent(Game.transform, false);
+
+            mCanvas = new GameCanvas(mRoot.transform, Game.MainCamera);
 
             BuildCars();
             FinalizeLot();
@@ -259,7 +264,8 @@ namespace PixelCar.Client
             CreateBoardFrame();
             CreateLaneStrip();
             CreateRoadDashes();
-            mBoardView = new BoardView(mRoot.transform, mSim.Board, mPalette);
+
+            mBoardView = new BoardView(mCanvas.Board, mSim.Board, mPalette);
             mBoardView.Place(new Vector3(mBoardOriginX, mBoardBottomY, 0f), mBoardWorldWidth, mBoardWorldHeight);
 
             var hudObject = new GameObject("Hud");
@@ -267,7 +273,6 @@ namespace PixelCar.Client
             mHud = hudObject.AddComponent<HudWindow>();
             mHud.Bind(this, Game.MainCamera, Game.UiFont);
 
-            mBoardView.Refresh();
             mLastPoolCount = mSim.Pool.Count;
             LayoutPool();
             FitCamera();
@@ -278,17 +283,13 @@ namespace PixelCar.Client
         /// </summary>
         private void CreateParkingPad()
         {
-            var pad = new GameObject("Lot");
-            pad.transform.SetParent(mRoot.transform, false);
             var width = mLotCols * Cell;
             var height = mLotRows * Cell;
-            pad.transform.position = new Vector3(width * 0.5f, mPoolTopY - height * 0.5f, 0f);
-            pad.transform.localScale = new Vector3(width + 0.35f, height + 0.35f, 1f);
-
-            var renderer = pad.AddComponent<SpriteRenderer>();
-            renderer.sprite = SpriteLibrary.BodySprite;
-            renderer.color = new Color(0.74f, 0.78f, 0.86f);
-            renderer.sortingOrder = -3;
+            var pad = GameCanvas.NewQuad("Lot", mCanvas.Background, new Color(0.74f, 0.78f, 0.86f));
+            GameCanvas.Place(
+                pad,
+                new Vector2(width * 0.5f, mPoolTopY - height * 0.5f),
+                new Vector2(width + 0.35f, height + 0.35f));
         }
 
         /// <summary>
@@ -296,15 +297,11 @@ namespace PixelCar.Client
         /// </summary>
         private void CreateBoardFrame()
         {
-            var frame = new GameObject("BoardFrame");
-            frame.transform.SetParent(mRoot.transform, false);
-            frame.transform.position = new Vector3(mBoardOriginX + mBoardWorldWidth * 0.5f, mBoardBottomY + mBoardWorldHeight * 0.5f, 0f);
-            frame.transform.localScale = new Vector3(mBoardWorldWidth + 0.28f, mBoardWorldHeight + 0.28f, 1f);
-
-            var renderer = frame.AddComponent<SpriteRenderer>();
-            renderer.sprite = SpriteLibrary.BodySprite;
-            renderer.color = new Color(0.93f, 0.91f, 0.86f);
-            renderer.sortingOrder = -2;
+            var frame = GameCanvas.NewQuad("BoardFrame", mCanvas.Background, new Color(0.93f, 0.91f, 0.86f));
+            GameCanvas.Place(
+                frame,
+                new Vector2(mBoardOriginX + mBoardWorldWidth * 0.5f, mBoardBottomY + mBoardWorldHeight * 0.5f),
+                new Vector2(mBoardWorldWidth + 0.28f, mBoardWorldHeight + 0.28f));
         }
 
         /// <summary>
@@ -312,15 +309,11 @@ namespace PixelCar.Client
         /// </summary>
         private void CreateLaneStrip()
         {
-            var laneObject = new GameObject("Lane");
-            laneObject.transform.SetParent(mRoot.transform, false);
-            laneObject.transform.position = new Vector3(mBoardOriginX + mBoardWorldWidth * 0.5f, mLaneY, 0f);
-            laneObject.transform.localScale = new Vector3(mBoardWorldWidth + 0.2f, 0.84f, 1f);
-
-            var renderer = laneObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = SpriteLibrary.BodySprite;
-            renderer.color = new Color(0.62f, 0.66f, 0.74f);
-            renderer.sortingOrder = -1;
+            var lane = GameCanvas.NewQuad("Lane", mCanvas.Background, new Color(0.62f, 0.66f, 0.74f));
+            GameCanvas.Place(
+                lane,
+                new Vector2(mBoardOriginX + mBoardWorldWidth * 0.5f, mLaneY),
+                new Vector2(mBoardWorldWidth + 0.2f, 0.84f));
         }
 
         /// <summary>
@@ -330,17 +323,11 @@ namespace PixelCar.Client
         {
             var left = mBoardOriginX + 0.35f;
             var right = mBoardOriginX + mBoardWorldWidth - 0.35f;
+            var color = new Color(1f, 1f, 1f, 0.72f);
             for (var x = left; x < right; x += 0.72f)
             {
-                var dashObject = new GameObject("Dash");
-                dashObject.transform.SetParent(mRoot.transform, false);
-                dashObject.transform.position = new Vector3(x, mLaneY, 0f);
-                dashObject.transform.localScale = new Vector3(0.34f, 0.07f, 1f);
-
-                var dash = dashObject.AddComponent<SpriteRenderer>();
-                dash.sprite = SpriteLibrary.BodySprite;
-                dash.color = new Color(1f, 1f, 1f, 0.72f);
-                dash.sortingOrder = 1;
+                var dash = GameCanvas.NewQuad("Dash", mCanvas.Background, color);
+                GameCanvas.Place(dash, new Vector2(x, mLaneY), new Vector2(0.34f, 0.07f));
             }
         }
 
@@ -406,7 +393,7 @@ namespace PixelCar.Client
                     };
 
                     mSim.Pool.Add(car);
-                    mCarViews.Add(car, new CarView(car, mRoot.transform, mPalette[car.Color]));
+                    mCarViews.Add(car, new CarView(car, mCanvas.Cars, mCanvas.Streams, mPalette[car.Color]));
                 }
 
                 return;
@@ -438,7 +425,7 @@ namespace PixelCar.Client
 
                     remain -= car.Planned;
                     mSim.Pool.Add(car);
-                    mCarViews.Add(car, new CarView(car, mRoot.transform, mPalette[car.Color]));
+                    mCarViews.Add(car, new CarView(car, mCanvas.Cars, mCanvas.Streams, mPalette[car.Color]));
                 }
             }
         }
@@ -707,6 +694,7 @@ namespace PixelCar.Client
             }
 
             mCarViews.Clear();
+            mCanvas = null;
             mHud = null;
         }
     }

@@ -6,6 +6,7 @@
 //---------------------------------------------------------------------------------------
 
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -28,15 +29,15 @@ namespace PixelCar.Client
         public string RemainTime = "19:12";
 
         [Header("引用")]
-        public Text LevelText;
+        public TextMeshProUGUI LevelText;
 
-        public Text CoinText;
+        public TextMeshProUGUI CoinText;
 
-        public Text HeartText;
+        public TextMeshProUGUI HeartText;
 
-        public Text HeartCapacityText;
+        public TextMeshProUGUI HeartCapacityText;
 
-        public Text TimerText;
+        public TextMeshProUGUI TimerText;
 
         public Button StartButton;
 

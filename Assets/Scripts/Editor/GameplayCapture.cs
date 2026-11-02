@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-30
@@ -49,8 +49,6 @@ namespace PixelCar.Editor
                 return;
             }
 
-            create.Invoke(entry, null);
-
             var camera = entry.MainCamera;
             if (!camera)
             {
@@ -58,9 +56,15 @@ namespace PixelCar.Editor
                 return;
             }
 
+            // 先把渲染目标挂上，建立场景时算出来的取景才和出图尺寸一致
             var target = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
             var previousTarget = camera.targetTexture;
             camera.targetTexture = target;
+
+            create.Invoke(entry, null);
+
+            // 画面是 UGUI 画布，渲染前要先让画布把网格建好
+            Canvas.ForceUpdateCanvases();
             camera.Render();
 
             RenderTexture.active = target;

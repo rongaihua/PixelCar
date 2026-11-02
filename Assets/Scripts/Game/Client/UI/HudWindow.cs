@@ -7,6 +7,7 @@
 
 using System.Collections.Generic;
 using PixelCar.Common;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -25,21 +26,21 @@ namespace PixelCar.Client
 
         private static readonly string[] sBoosterLabels = { "磁铁", "钩子", "刷新" };
 
-        private readonly List<Text> mPercentPool = new List<Text>();
+        private readonly List<TextMeshProUGUI> mPercentPool = new List<TextMeshProUGUI>();
         private readonly List<RectTransform> mBoosterCards = new List<RectTransform>();
 
         private MainModule mModule;
         private Camera mCamera;
-        private Font mFont;
+        private TMP_FontAsset mFont;
         private RectTransform mCanvasRect;
 
-        private Text mStatusText;
+        private TextMeshProUGUI mStatusText;
         private RectTransform mBadgeRect;
-        private Text mBadgeText;
-        private Text mMessageText;
+        private TextMeshProUGUI mBadgeText;
+        private TextMeshProUGUI mMessageText;
         private GameObject mOverlay;
-        private Text mOverlayTitle;
-        private Text mOverlayBody;
+        private TextMeshProUGUI mOverlayTitle;
+        private TextMeshProUGUI mOverlayBody;
         private bool mRestartRequested;
 
         /// <summary>
@@ -47,14 +48,15 @@ namespace PixelCar.Client
         /// </summary>
         /// <param name="module">主模块</param>
         /// <param name="camera">主相机，用于世界坐标转屏幕</param>
-        public void Bind(MainModule module, Camera camera, Font uiFont)
+        /// <param name="uiFont">界面字体（TMP）</param>
+        public void Bind(MainModule module, Camera camera, TMP_FontAsset uiFont)
         {
             mModule = module;
             mCamera = camera;
             mFont = uiFont;
-            if (!mFont)
+            if (!mFont && TMP_Settings.instance != null)
             {
-                mFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                mFont = TMP_Settings.defaultFontAsset;
             }
 
             BuildCanvas();
@@ -115,7 +117,7 @@ namespace PixelCar.Client
         /// </summary>
         private void BuildStatus()
         {
-            mStatusText = CreateText("Status", mCanvasRect, 30, TextAnchor.UpperLeft, Color.white);
+            mStatusText = CreateText("Status", mCanvasRect, 30, TextAlignmentOptions.TopLeft, Color.white);
             var rect = mStatusText.rectTransform;
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
@@ -133,7 +135,7 @@ namespace PixelCar.Client
             mBadgeRect = panel.rectTransform;
             mBadgeRect.sizeDelta = new Vector2(132f, 54f);
 
-            mBadgeText = CreateText("BadgeText", mBadgeRect, 30, TextAnchor.MiddleCenter, Color.white);
+            mBadgeText = CreateText("BadgeText", mBadgeRect, 30, TextAlignmentOptions.Center, Color.white);
             Stretch(mBadgeText.rectTransform);
         }
 
@@ -144,7 +146,7 @@ namespace PixelCar.Client
         {
             for (var i = 0; i < PercentPoolSize; ++i)
             {
-                var text = CreateText($"Percent{i}", mCanvasRect, 26, TextAnchor.MiddleCenter, new Color(1f, 0.96f, 0.86f));
+                var text = CreateText($"Percent{i}", mCanvasRect, 26, TextAlignmentOptions.Center, new Color(1f, 0.96f, 0.86f));
                 text.rectTransform.sizeDelta = new Vector2(120f, 40f);
                 text.gameObject.SetActive(false);
                 mPercentPool.Add(text);
@@ -167,7 +169,7 @@ namespace PixelCar.Client
                 rect.anchoredPosition = new Vector2(30f + i * 330f, 34f);
                 mBoosterCards.Add(rect);
 
-                var label = CreateText("Label", rect, 30, TextAnchor.LowerCenter, new Color(0.28f, 0.30f, 0.36f));
+                var label = CreateText("Label", rect, 30, TextAlignmentOptions.Bottom, new Color(0.28f, 0.30f, 0.36f));
                 label.text = sBoosterLabels[i];
                 label.rectTransform.anchorMin = new Vector2(0f, 0f);
                 label.rectTransform.anchorMax = new Vector2(1f, 0f);
@@ -183,7 +185,7 @@ namespace PixelCar.Client
                 plusRect.sizeDelta = new Vector2(46f, 46f);
                 plusRect.anchoredPosition = new Vector2(10f, 10f);
 
-                var plusText = CreateText("PlusText", plusRect, 28, TextAnchor.MiddleCenter, Color.white);
+                var plusText = CreateText("PlusText", plusRect, 28, TextAlignmentOptions.Center, Color.white);
                 plusText.text = "+";
                 Stretch(plusText.rectTransform);
             }
@@ -194,7 +196,7 @@ namespace PixelCar.Client
         /// </summary>
         private void BuildMessage()
         {
-            mMessageText = CreateText("Message", mCanvasRect, 26, TextAnchor.MiddleCenter, Color.white);
+            mMessageText = CreateText("Message", mCanvasRect, 26, TextAlignmentOptions.Center, Color.white);
             var rect = mMessageText.rectTransform;
             rect.anchorMin = new Vector2(0.5f, 0f);
             rect.anchorMax = new Vector2(0.5f, 0f);
@@ -219,7 +221,7 @@ namespace PixelCar.Client
             boxRect.pivot = new Vector2(0.5f, 0.5f);
             boxRect.sizeDelta = new Vector2(840f, 620f);
 
-            mOverlayTitle = CreateText("Title", boxRect, 60, TextAnchor.UpperCenter, new Color(0.2f, 0.22f, 0.28f));
+            mOverlayTitle = CreateText("Title", boxRect, 60, TextAlignmentOptions.Top, new Color(0.2f, 0.22f, 0.28f));
             var titleRect = mOverlayTitle.rectTransform;
             titleRect.anchorMin = new Vector2(0f, 1f);
             titleRect.anchorMax = new Vector2(1f, 1f);
@@ -227,7 +229,7 @@ namespace PixelCar.Client
             titleRect.sizeDelta = new Vector2(0f, 90f);
             titleRect.anchoredPosition = new Vector2(0f, -50f);
 
-            mOverlayBody = CreateText("Body", boxRect, 32, TextAnchor.UpperCenter, new Color(0.3f, 0.32f, 0.4f));
+            mOverlayBody = CreateText("Body", boxRect, 32, TextAlignmentOptions.Top, new Color(0.3f, 0.32f, 0.4f));
             var bodyRect = mOverlayBody.rectTransform;
             bodyRect.anchorMin = new Vector2(0f, 1f);
             bodyRect.anchorMax = new Vector2(1f, 1f);
@@ -247,7 +249,7 @@ namespace PixelCar.Client
             buttonImage.targetGraphic = button;
             buttonImage.onClick.AddListener(OnRestartClicked);
 
-            var label = CreateText("Label", buttonRect, 40, TextAnchor.MiddleCenter, Color.white);
+            var label = CreateText("Label", buttonRect, 40, TextAlignmentOptions.Center, Color.white);
             label.text = "重开本关";
             Stretch(label.rectTransform);
 
@@ -427,20 +429,20 @@ namespace PixelCar.Client
         /// <param name="anchor">对齐</param>
         /// <param name="color">颜色</param>
         /// <returns>文字</returns>
-        private Text CreateText(string name, Transform parent, int size, TextAnchor anchor, Color color)
+        private TextMeshProUGUI CreateText(string name, Transform parent, float size, TextAlignmentOptions anchor, Color color)
         {
             var gameObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)gameObject.transform;
             rect.SetParent(parent, false);
 
-            var text = gameObject.AddComponent<Text>();
+            var text = gameObject.AddComponent<TextMeshProUGUI>();
             text.font = mFont;
             text.fontSize = size;
             text.alignment = anchor;
             text.color = color;
             text.raycastTarget = false;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.enableWordWrapping = true;
+            text.overflowMode = TextOverflowModes.Overflow;
             return text;
         }
 

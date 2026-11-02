@@ -3,7 +3,8 @@
     "rootNamespace": "PixelCar.Editor",
     "references": [
         "pixelcar_common",
-        "pixelcar_client"
+        "pixelcar_client",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

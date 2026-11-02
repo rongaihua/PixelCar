@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -6,6 +6,7 @@
 //---------------------------------------------------------------------------------------
 
 using PixelCar.Client;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -26,11 +27,11 @@ namespace PixelCar.Editor
         public const string PrefabPath = "Assets/Res/UI/StartWindow.prefab";
 
         /// <summary>
-        /// 界面字体（libra 包内）
+        /// 界面字体（libra 包内的 TMP 字体资产）
         /// </summary>
-        public const string FontPath = "Packages/com.rongaihua.my-game-libra/Res/libra_font/AlimamaFangYuanTiVF_Thin.ttf";
+        public const string FontPath = "Packages/com.rongaihua.my-game-libra/Res/libra_font/AlimamaFangYuanTiVF_Thin SDF.asset";
 
-        private const string FontPathByFolder = "Packages/my-game-libra/Res/libra_font/AlimamaFangYuanTiVF_Thin.ttf";
+        private const string FontPathByFolder = "Packages/my-game-libra/Res/libra_font/AlimamaFangYuanTiVF_Thin SDF.asset";
 
         private const string ArtDir = "Assets/Res/UI/Generated";
 
@@ -73,7 +74,7 @@ namespace PixelCar.Editor
             var startButton = BuildStartButton(root);
 
             var view = window.AddComponent<StartWindow>();
-            view.LevelText = startButton.GetComponentInChildren<Text>();
+            view.LevelText = startButton.GetComponentInChildren<TextMeshProUGUI>();
             view.StartButton = startButton;
             view.CoinText = FindTextByName(root, "CoinText");
             view.HeartText = FindTextByName(root, "HeartText");
@@ -122,27 +123,27 @@ namespace PixelCar.Editor
             var heart = CreateImage("HeartIcon", root, LoadSprite("heart", UiSpriteFactory.Circle()), Color.white);
             PlaceTopLeft(heart.rectTransform, 232f, 66f, 56f, 56f);
 
-            var heartText = CreateText("HeartText", root, "1", 40, CreamText, TextAnchor.MiddleLeft);
-            heartText.fontStyle = FontStyle.Bold;
+            var heartText = CreateText("HeartText", root, "1", 40, CreamText, TextAlignmentOptions.Left);
+            heartText.fontStyle = FontStyles.Bold;
             PlaceTopLeftEdge(heartText.rectTransform, 264f, 68f, 70f, 50f);
 
-            var timerText = CreateText("TimerText", root, "19:12", 34, CreamText, TextAnchor.MiddleCenter);
-            timerText.fontStyle = FontStyle.Bold;
+            var timerText = CreateText("TimerText", root, "19:12", 34, CreamText, TextAlignmentOptions.Center);
+            timerText.fontStyle = FontStyles.Bold;
             PlaceTopLeft(timerText.rectTransform, 352f, 68f, 120f, 50f);
 
             var badge = CreateImage("HeartCapacity", root, LoadSprite("badge_red", UiSpriteFactory.Circle()), Color.white);
             PlaceTopLeft(badge.rectTransform, 406f, 30f, 40f, 40f);
 
-            var badgeText = CreateText("HeartCapacityText", root, "2", 24, Color.white, TextAnchor.MiddleCenter);
-            badgeText.fontStyle = FontStyle.Bold;
-            AddOutline(badgeText.gameObject, new Color(0.59f, 0.10f, 0.07f), 1f);
+            var badgeText = CreateText("HeartCapacityText", root, "2", 24, Color.white, TextAlignmentOptions.Center);
+            badgeText.fontStyle = FontStyles.Bold;
+            AddOutline(badgeText, new Color(0.59f, 0.10f, 0.07f), 1f);
             PlaceTopLeft(badgeText.rectTransform, 406f, 30f, 40f, 40f);
 
             var coin = CreateImage("CoinIcon", root, LoadSprite("coin", UiSpriteFactory.Circle()), Color.white);
             PlaceTopLeft(coin.rectTransform, 452f, 66f, 56f, 56f);
 
-            var coinText = CreateText("CoinText", root, "1460", 38, CreamText, TextAnchor.MiddleLeft);
-            coinText.fontStyle = FontStyle.Bold;
+            var coinText = CreateText("CoinText", root, "1460", 38, CreamText, TextAlignmentOptions.Left);
+            coinText.fontStyle = FontStyles.Bold;
             PlaceTopLeftEdge(coinText.rectTransform, 488f, 66f, 120f, 50f);
 
             var plus = CreateImage("CoinPlus", root, LoadSprite("plus_green", UiSpriteFactory.Circle()), Color.white);
@@ -172,9 +173,9 @@ namespace PixelCar.Editor
             var button = background.gameObject.AddComponent<Button>();
             button.targetGraphic = background;
 
-            var label = CreateText("LevelText", background.transform, "第7关", 60, Color.white, TextAnchor.MiddleCenter);
-            label.fontStyle = FontStyle.Bold;
-            AddOutline(label.gameObject, new Color(0.23f, 0.46f, 0.05f), 3f);
+            var label = CreateText("LevelText", background.transform, "第7关", 60, Color.white, TextAlignmentOptions.Center);
+            label.fontStyle = FontStyles.Bold;
+            AddOutline(label, new Color(0.23f, 0.46f, 0.05f), 3f);
             label.rectTransform.anchorMin = Vector2.zero;
             label.rectTransform.anchorMax = Vector2.one;
             label.rectTransform.offsetMin = Vector2.zero;
@@ -260,25 +261,25 @@ namespace PixelCar.Editor
         }
 
         /// <summary>
-        /// 取 libra 包里的界面字体
+        /// 取 libra 包里的界面字体（TMP 字体资产）
         /// </summary>
-        /// <returns>字体</returns>
-        private static Font LibraFont()
+        /// <returns>字体资产</returns>
+        private static TMP_FontAsset LibraFont()
         {
-            var font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             if (font)
             {
                 return font;
             }
 
-            font = AssetDatabase.LoadAssetAtPath<Font>(FontPathByFolder);
+            font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPathByFolder);
             if (font)
             {
                 return font;
             }
 
-            Debug.LogWarning($"找不到界面字体 {FontPath}，回退到内置字体（中文会显示成方块）");
-            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            Debug.LogWarning($"找不到界面字体 {FontPath}，回退到 TMP 默认字体（中文会显示成方块）");
+            return TMP_Settings.instance != null ? TMP_Settings.defaultFontAsset : null;
         }
 
         /// <summary>
@@ -300,17 +301,15 @@ namespace PixelCar.Editor
         }
 
         /// <summary>
-        /// 给文字加描边
+        /// 给文字加描边（用 TMP 自带的描边，不用 UGUI 的 Outline 特效）
         /// </summary>
-        /// <param name="target">目标</param>
+        /// <param name="text">目标</param>
         /// <param name="color">描边色</param>
-        /// <param name="distance">距离</param>
-        private static void AddOutline(GameObject target, Color color, float distance)
+        /// <param name="distance">粗细，沿用旧的字号比例</param>
+        private static void AddOutline(TMP_Text text, Color color, float distance)
         {
-            var outline = target.AddComponent<Outline>();
-            outline.effectColor = color;
-            outline.effectDistance = new Vector2(distance, -distance);
-            outline.useGraphicAlpha = true;
+            text.outlineColor = color;
+            text.outlineWidth = Mathf.Clamp(distance * 0.06f, 0.02f, 0.4f);
         }
 
         /// <summary>
@@ -344,21 +343,21 @@ namespace PixelCar.Editor
         /// <param name="color">颜色</param>
         /// <param name="anchor">对齐</param>
         /// <returns>文字</returns>
-        private static Text CreateText(string name, Transform parent, string content, int fontSize, Color color, TextAnchor anchor)
+        private static TextMeshProUGUI CreateText(string name, Transform parent, string content, float fontSize, Color color, TextAlignmentOptions anchor)
         {
             var gameObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)gameObject.transform;
             rect.SetParent(parent, false);
 
-            var text = gameObject.AddComponent<Text>();
+            var text = gameObject.AddComponent<TextMeshProUGUI>();
             text.text = content;
             text.font = LibraFont();
             text.fontSize = fontSize;
             text.alignment = anchor;
             text.color = color;
             text.raycastTarget = false;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
             return text;
         }
 
@@ -419,9 +418,9 @@ namespace PixelCar.Editor
         /// <param name="root">根</param>
         /// <param name="name">名字</param>
         /// <returns>文字</returns>
-        private static Text FindTextByName(RectTransform root, string name)
+        private static TextMeshProUGUI FindTextByName(RectTransform root, string name)
         {
-            var found = root.GetComponentsInChildren<Text>(true);
+            var found = root.GetComponentsInChildren<TextMeshProUGUI>(true);
             foreach (var text in found)
             {
                 if (text.name == name)

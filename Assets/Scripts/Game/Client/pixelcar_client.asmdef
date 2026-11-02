@@ -4,7 +4,8 @@
     "references": [
         "pixelcar_common",
         "MyGame.Shared",
-        "MyGame.Client"
+        "MyGame.Client",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

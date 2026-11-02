@@ -6,6 +6,7 @@
 //---------------------------------------------------------------------------------------
 
 using PixelCar.Common;
+using TMPro;
 using UnityEngine;
 
 namespace PixelCar.Client
@@ -50,8 +51,8 @@ namespace PixelCar.Client
         public ENotFullBehavior NotFullBehavior = ENotFullBehavior.Loop;
 
         [Header("界面")]
-        [Tooltip("UI 字体，直接引用 libra 包里的字体资产，不拷贝")]
-        public Font UiFont;
+        [Tooltip("UI 字体（TMP），直接引用 libra 包里的字体资产，不拷贝")]
+        public TMP_FontAsset UiFont;
 
         [Tooltip("开始界面，场景里摆好的实例；留空则直接进游戏")]
         public StartWindow StartWindow;
