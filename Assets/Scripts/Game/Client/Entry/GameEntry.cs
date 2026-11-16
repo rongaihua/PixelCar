@@ -24,10 +24,7 @@ namespace PixelCar.Client
         public const string DefaultBoardPath = "Assets/Res/PixelBoards/level1.asset";
 
         [Header("关卡数据（可留空）")]
-        [Tooltip("指定了就用它；留空则按下面的路径动态加载。")]
-        public PixelBoardAsset BoardAsset;
-
-        [Tooltip("动态加载的关卡资产路径（编辑器下走 AssetDatabase）。")]
+        [Tooltip("动态加载的关卡资产路径（编辑器下走 AssetDatabase）。留空则改用 JSON / 测试关。")]
         public string BoardAssetPath = DefaultBoardPath;
 
         [Tooltip("编辑器导出的关卡 JSON。都留空则自动生成测试关。")]
@@ -159,16 +156,11 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 取关卡资产：挂了引用就用引用，否则按路径动态加载（只加载一次）。
+        /// 按路径动态加载关卡资产（只加载一次，销毁时归还）。
         /// </summary>
         /// <returns>关卡资产。加载不到时为空。</returns>
         public PixelBoardAsset ResolveBoardAsset()
         {
-            if (BoardAsset)
-            {
-                return BoardAsset;
-            }
-
             if (mLoadedBoard)
             {
                 return mLoadedBoard;
