@@ -17,35 +17,88 @@ namespace PixelCar.Client
     public static class PixelCarLevelBuilder
     {
         /// <summary>
-        /// 载入关卡：优先读入口上配置的 JSON，读不到就生成一张测试图
+        /// 载入关卡：优先用入口上挂的色块盘资产，其次读 JSON，都没有就生成一张测试图
         /// </summary>
         /// <param name="game">客户端入口</param>
         /// <returns>关卡数据</returns>
         public static PixelBoardLevel Load(GameEntry game)
         {
-            var json = game.LevelJson;
-            if (json && !string.IsNullOrEmpty(json.text))
+            var level = FromAsset(game, game.BoardAsset);
+            if (level != null)
             {
-                try
-                {
-                    var level = JsonUtility.FromJson<PixelBoardLevel>(json.text);
-                    if (level != null && level.Width > 0 && level.Height > 0 && level.Palette != null && level.Palette.Length > 0)
-                    {
-                        if (level.Cars == null || level.Cars.Length == 0)
-                        {
-                            BuildCars(level, CarSizes(game), CarShares(game));
-                        }
+                return level;
+            }
 
-                        return level;
-                    }
-                }
-                catch (System.Exception exception)
-                {
-                    MyGame.Logger.Warn($"关卡 JSON 解析失败，改用测试关：{exception.Message}");
-                }
+            level = FromJson(game, game.LevelJson);
+            if (level != null)
+            {
+                return level;
             }
 
             return BuildTest(game);
+        }
+
+        /// <summary>
+        /// 从色块盘资产取关卡
+        /// </summary>
+        /// <param name="game">客户端入口</param>
+        /// <param name="asset">资产</param>
+        /// <returns>关卡数据，不可用时为空</returns>
+        private static PixelBoardLevel FromAsset(GameEntry game, PixelBoardAsset asset)
+        {
+            if (!asset)
+            {
+                return null;
+            }
+
+            var level = asset.Level;
+            if (level == null || level.Width <= 0 || level.Height <= 0 || level.Palette == null || level.Palette.Length == 0)
+            {
+                MyGame.Logger.Warn($"色块盘资产 {asset.name} 数据不完整，跳过");
+                return null;
+            }
+
+            if (level.Cars == null || level.Cars.Length == 0)
+            {
+                // 资产里没存车就按格数现拆（会写回资产实例，仅内存）
+                BuildCars(level, CarSizes(game), CarShares(game));
+            }
+
+            return level;
+        }
+
+        /// <summary>
+        /// 从关卡 JSON 取关卡
+        /// </summary>
+        /// <param name="game">客户端入口</param>
+        /// <param name="json">JSON 资产</param>
+        /// <returns>关卡数据，不可用时为空</returns>
+        private static PixelBoardLevel FromJson(GameEntry game, TextAsset json)
+        {
+            if (!json || string.IsNullOrEmpty(json.text))
+            {
+                return null;
+            }
+
+            try
+            {
+                var level = JsonUtility.FromJson<PixelBoardLevel>(json.text);
+                if (level != null && level.Width > 0 && level.Height > 0 && level.Palette != null && level.Palette.Length > 0)
+                {
+                    if (level.Cars == null || level.Cars.Length == 0)
+                    {
+                        BuildCars(level, CarSizes(game), CarShares(game));
+                    }
+
+                    return level;
+                }
+            }
+            catch (System.Exception exception)
+            {
+                MyGame.Logger.Warn($"关卡 JSON 解析失败，改用测试关：{exception.Message}");
+            }
+
+            return null;
         }
 
         /// <summary>

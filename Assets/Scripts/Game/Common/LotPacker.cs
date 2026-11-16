@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-29
@@ -13,8 +13,8 @@ namespace PixelCar.Common
     /// 停车场排布。车头格子写在 <see cref="CarState.Col"/> / <see cref="CarState.Row"/>，
     /// 车身沿朝向的反方向占 <see cref="CarState.Span"/> 格。
     ///
-    /// 采用按列紧密堆叠：每列从最靠近车道的一行往下排，
-    /// 所以每列最上面的车一定没有阻挡，整关一定有解。
+    /// 按带横排：每带最多 <see cref="LotCols"/> 辆，都朝上，车头贴着带顶，
+    /// 所以每带最上面那一排车一定没有阻挡。带内颜色混着排，见 <see cref="Pack"/>。
     /// </summary>
     public static class LotPacker
     {
@@ -136,10 +136,15 @@ namespace PixelCar.Common
 
         /// <summary>
         /// 排布全部车辆。结果写回每辆车的朝向、车头格子和车长。
-        /// 从后往前放：后放的车排在更靠近车道的位置，先放的车被它挡住，关卡通得了。
+        ///
+        /// 顺序做两道处理：
+        /// 1. 按颜色轮转重排（<see cref="DealByColor"/>），让每一带都尽量凑齐各色。
+        ///    关卡数据里同色的车是连着的，直接分带会变成一带全同色，
+        ///    盘面底层的另一种颜色一辆都拉不到，一开局就是死局；
+        /// 2. 每一带内部按 seed 打乱列顺序，避免每次都排成同一串颜色。
         /// </summary>
         /// <param name="cars">待命车辆</param>
-        /// <param name="seed">随机种子，保留参数以兼容调用方</param>
+        /// <param name="seed">随机种子，决定每带内的列顺序</param>
         /// <param name="cols">停车场列数</param>
         /// <param name="rows">停车场行数</param>
         public static void Pack(IList<CarState> cars, int seed, out int cols, out int rows)
@@ -151,33 +156,36 @@ namespace PixelCar.Common
                 return;
             }
 
+            var ordered = DealByColor(cars);
+            var random = seed == 0 ? 0x9E3779B9u : (uint)seed;
+
             // 按“带”横排：一带最多 cols 辆，带高取这一带里最长的车，横向填满再换带
             var row = 0;
             var index = 0;
-            while (index < cars.Count)
+            while (index < ordered.Count)
             {
-                var count = MathUtil.Min(cols, cars.Count - index);
+                var count = MathUtil.Min(cols, ordered.Count - index);
+
+                // 这一带内部的列顺序打乱
+                for (var i = count - 1; i > 0; --i)
+                {
+                    var j = (int)(NextRandom(ref random) % (uint)(i + 1));
+                    var swap = ordered[index + i];
+                    ordered[index + i] = ordered[index + j];
+                    ordered[index + j] = swap;
+                }
+
                 var bandSpan = 1;
                 for (var i = 0; i < count; ++i)
                 {
-                    var car = cars[index + i];
-                    if (car == null)
-                    {
-                        continue;
-                    }
-
+                    var car = ordered[index + i];
                     car.Span = MathUtil.Clamp(SpanOf(car.Capacity), 1, 3);
                     bandSpan = MathUtil.Max(bandSpan, car.Span);
                 }
 
                 for (var i = 0; i < count; ++i)
                 {
-                    var car = cars[index + i];
-                    if (car == null)
-                    {
-                        continue;
-                    }
-
+                    var car = ordered[index + i];
                     car.Dir = ECarDir.Up;
                     car.Col = i;
                     car.Row = row;
@@ -188,6 +196,80 @@ namespace PixelCar.Common
             }
 
             rows = MathUtil.Max(1, row);
+        }
+
+        /// <summary>
+        /// 按颜色轮转排队：按色号取车，一轮一种颜色，同色的车因此被摊到各带，
+        /// 一带里颜色尽量齐。结果与传入顺序无关，只跟每色几辆有关。
+        /// </summary>
+        /// <param name="cars">待命车辆</param>
+        /// <returns>重排后的列表</returns>
+        private static List<CarState> DealByColor(IList<CarState> cars)
+        {
+            var colors = new List<int>();
+            for (var i = 0; i < cars.Count; ++i)
+            {
+                var car = cars[i];
+                if (car == null)
+                {
+                    continue;
+                }
+
+                if (!colors.Contains(car.Color))
+                {
+                    colors.Add(car.Color);
+                }
+            }
+
+            colors.Sort();
+
+            var buckets = new List<CarState>[colors.Count];
+            for (var i = 0; i < buckets.Length; ++i)
+            {
+                buckets[i] = new List<CarState>();
+            }
+
+            for (var i = 0; i < cars.Count; ++i)
+            {
+                var car = cars[i];
+                if (car != null)
+                {
+                    buckets[colors.IndexOf(car.Color)].Add(car);
+                }
+            }
+
+            var ordered = new List<CarState>(cars.Count);
+            var longest = 0;
+            foreach (var bucket in buckets)
+            {
+                longest = MathUtil.Max(longest, bucket.Count);
+            }
+
+            for (var index = 0; index < longest; ++index)
+            {
+                foreach (var bucket in buckets)
+                {
+                    if (index < bucket.Count)
+                    {
+                        ordered.Add(bucket[index]);
+                    }
+                }
+            }
+
+            return ordered;
+        }
+
+        /// <summary>
+        /// xorshift 随机数，只用来打乱列顺序，不依赖 System.Random 的具体实现
+        /// </summary>
+        /// <param name="state">状态</param>
+        /// <returns>下一个值</returns>
+        private static uint NextRandom(ref uint state)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            return state;
         }
 
         /// <summary>

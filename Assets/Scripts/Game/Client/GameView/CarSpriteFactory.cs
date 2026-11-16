@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-29
@@ -94,21 +94,13 @@ namespace PixelCar.Client
             var source = template.GetPixels32();
             var maskPixels = mask.GetPixels32();
 
-            Color.RGBToHSV(color, out var hue, out var saturation, out _);
+            Color.RGBToHSV(color, out var hue, out var saturation, out var value);
 
-            // 白/米白属于低饱和，套统一公式会发灰：降饱和 + 提亮
-            var shadeScale = 1f;
-            if (saturation < 0.15f)
-            {
-                saturation *= 0.4f;
-                shadeScale = 1.12f;
-            }
-
-            // 红色明度压一档，避免偏粉
-            if (hue < 0.05f || hue > 0.95f)
-            {
-                shadeScale *= 0.92f;
-            }
+            // 模板车身是中灰，先把「车身平均灰度」当成中间调锚点。
+            // 车身像素的灰度除以锚点得到相对明暗倍率，再乘目标颜色的明度，
+            // 这样车身中间调正好等于调色板里的色块色，深浅细节仍由模板决定。
+            var anchor = BodyAnchor(source, maskPixels);
+            var gain = value / anchor;
 
             var result = new Color32[source.Length];
             for (var i = 0; i < source.Length; ++i)
@@ -121,7 +113,7 @@ namespace PixelCar.Client
                     continue;
                 }
 
-                var shade = Mathf.Clamp01(pixel.r / 255f * shadeScale);
+                var shade = Mathf.Clamp01(pixel.r / 255f * gain);
                 var tinted = Color.HSVToRGB(hue, saturation, shade);
                 result[i] = new Color32(
                     (byte)(tinted.r * 255f),
@@ -137,6 +129,28 @@ namespace PixelCar.Client
             texture.Apply();
 
             return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>
+        /// 模板车身（遮罩内）的平均灰度，当作中间调锚点。
+        /// </summary>
+        /// <param name="source">模板像素。</param>
+        /// <param name="maskPixels">遮罩像素。</param>
+        /// <returns>平均灰度，0~1。</returns>
+        private static float BodyAnchor(Color32[] source, Color32[] maskPixels)
+        {
+            var sum = 0f;
+            var count = 0;
+            for (var i = 0; i < source.Length && i < maskPixels.Length; ++i)
+            {
+                if (maskPixels[i].r > 127 && source[i].a > 0)
+                {
+                    sum += source[i].r / 255f;
+                    ++count;
+                }
+            }
+
+            return count > 0 ? sum / count : 0.5f;
         }
 
         /// <summary>

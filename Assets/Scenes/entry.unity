@@ -166,6 +166,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b1c9d2e4f5a46b8a0c3d6e9f2b45c71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  BoardAsset: {fileID: 11400000, guid: 5f0b48ff31e64bc48b8a29d1ef133478, type: 2}
   LevelJson: {fileID: 0}
   TestWidth: 80
   TestHeight: 50
@@ -178,7 +179,7 @@ MonoBehaviour:
   DriveSpeed: 1
   LoadInterval: 0.05
   NotFullBehavior: 0
-  UiFont: {fileID: 11400000, guid: 9a26f85e1522fc0438fe3e80f8a9a282, type: 3}
+  UiFont: {fileID: 11400000, guid: 9a26f85e1522fc0438fe3e80f8a9a282, type: 2}
   StartWindow: {fileID: 499968024}
 --- !u!1 &200000
 GameObject:

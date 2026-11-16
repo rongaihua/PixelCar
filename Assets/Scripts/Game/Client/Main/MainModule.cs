@@ -20,6 +20,11 @@ namespace PixelCar.Client
         private const float CrossSeconds = 5f;
         private const float DeadlockConfirmSeconds = 0.6f;
 
+        /// <summary>
+        /// 入口排队区在取景里预留的横向宽度
+        /// </summary>
+        private const float LaneRoom = 3.0f;
+
         private readonly Dictionary<CarState, CarView> mCarViews = new();
 
         private PixelBoardLevel mLevel;
@@ -27,6 +32,7 @@ namespace PixelCar.Client
         private Color32[] mPalette;
         private GameCanvas mCanvas;
         private BoardView mBoardView;
+        private RectTransform mLaneStrip;
         private HudWindow mHud;
         private GameObject mRoot;
 
@@ -305,15 +311,39 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 车道底板
+        /// 车道底板。长度跟着排队的车走，排到哪里就铺到哪里。
         /// </summary>
         private void CreateLaneStrip()
         {
-            var lane = GameCanvas.NewQuad("Lane", mCanvas.Background, new Color(0.62f, 0.66f, 0.74f));
+            mLaneStrip = GameCanvas.NewQuad("Lane", mCanvas.Background, new Color(0.62f, 0.66f, 0.74f));
+            UpdateLaneStrip();
+        }
+
+        /// <summary>
+        /// 按当前排队的车更新车道长度：入口方向往左延长，出口方向也留出一截。
+        /// </summary>
+        private void UpdateLaneStrip()
+        {
+            if (!mLaneStrip || mSim == null)
+            {
+                return;
+            }
+
+            var left = mBoardOriginX;
+            var right = mBoardOriginX + mBoardWorldWidth;
+
+            for (var i = 0; i < mSim.Lane.Count; ++i)
+            {
+                var car = mSim.Lane[i];
+                var half = MathUtil.Max(1, car.Span) * Cell * 0.5f;
+                left = MathUtil.MinFloat(left, car.X - half);
+                right = MathUtil.MaxFloat(right, car.X + half);
+            }
+
             GameCanvas.Place(
-                lane,
-                new Vector2(mBoardOriginX + mBoardWorldWidth * 0.5f, mLaneY),
-                new Vector2(mBoardWorldWidth + 0.2f, 0.84f));
+                mLaneStrip,
+                new Vector2((left + right) * 0.5f, mLaneY),
+                new Vector2(right - left + 0.4f, 0.84f));
         }
 
         /// <summary>
@@ -499,10 +529,12 @@ namespace PixelCar.Client
 
             var top = mBoardBottomY + mBoardWorldHeight + 0.35f;
             var bottom = mPoolTopY - mLotRows * Cell - 1.4f;
-            var midX = mLotCols * Cell * 0.5f;
+
+            // 车道入口往左能排出好几辆车，取景整体左移一点，把排队区露出来
+            var midX = mLotCols * Cell * 0.5f - LaneRoom * 0.5f;
 
             var halfHeight = (top - bottom) * 0.5f;
-            var halfWidth = mLotCols * Cell * 0.5f + 0.4f;
+            var halfWidth = mLotCols * Cell * 0.5f + 0.4f + LaneRoom * 0.5f;
             var aspect = MathUtil.MaxFloat(0.3f, camera.aspect);
             var size = MathUtil.MaxFloat(halfHeight, halfWidth / aspect);
 
@@ -540,9 +572,7 @@ namespace PixelCar.Client
 
                 if (!mSim.Admit(car))
                 {
-                    ShowMessage(mSim.Lane.Count >= Game.LaneCapacity
-                        ? "车道满了，等车装满开走"
-                        : "入口还有车，等它往前开一点");
+                    ShowMessage("车道满了，等车装满开走");
                     return;
                 }
 
@@ -577,6 +607,8 @@ namespace PixelCar.Client
                 var color = streaming ? (Color)mPalette[car.Color] : Color.white;
                 view.SetStream(streaming, mBoardBottomY, color);
             }
+
+            UpdateLaneStrip();
         }
 
         /// <summary>

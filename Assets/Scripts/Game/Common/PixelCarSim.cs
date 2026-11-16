@@ -1,4 +1,4 @@
-﻿//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
 // Copyright (c) WithMe8 2023-2030
 // Author: WYF
 // Date: 2026-10-28
@@ -139,18 +139,14 @@ namespace PixelCar.Common
         }
 
         /// <summary>
-        /// 把待命区的车放进车道，车道满了返回 false
+        /// 把待命区的车放进车道。新车排在入口最后一辆车的后面，
+        /// 车道往左自动延长，所以只要有空位就一定放得下。
         /// </summary>
         /// <param name="car">要放的车</param>
         /// <returns>是否成功</returns>
         public bool Admit(CarState car)
         {
-            if (IsBlocked(car))
-            {
-                return false;
-            }
-
-            if (car == null || Lane.Count >= LaneCapacity || !CanWrap(car))
+            if (car == null || Lane.Count >= LaneCapacity || IsBlocked(car))
             {
                 return false;
             }
@@ -162,7 +158,7 @@ namespace PixelCar.Common
 
             Vacate(car);
             car.Phase = ECarPhase.Driving;
-            car.X = EntryOf(car);
+            car.X = LaneTail(car);
             car.TargetColumn = -1;
             car.LoadedAtLapStart = car.Loaded;
             Lane.Add(car);
@@ -196,10 +192,8 @@ namespace PixelCar.Common
                 switch (car.Phase)
                 {
                     case ECarPhase.Driving:
-                        TickDriving(car, deltaTime);
-                        break;
                     case ECarPhase.Loading:
-                        TickLoading(car, deltaTime);
+                        TickDriving(car, deltaTime);
                         break;
                     case ECarPhase.Exiting:
                         TickExiting(car, deltaTime);
@@ -246,7 +240,9 @@ namespace PixelCar.Common
                 }
             }
 
-            var laneFreesItself = OnNotFull is ENotFullBehavior.LoopOrReturn or ENotFullBehavior.ReturnToPool;
+            // 除了 Park，其它策略都会把绕不回去的车送回待命区（见 WrapOrReturn），
+            // 车道迟早自己空出来，所以「车道满」本身不等于死局。
+            var laneFreesItself = OnNotFull != ENotFullBehavior.Park;
             if (!laneFreesItself && Lane.Count >= LaneCapacity)
             {
                 return true;
@@ -292,7 +288,13 @@ namespace PixelCar.Common
         }
 
         /// <summary>
-        /// 推进行驶中的车
+        /// 吸色时降到正常速度的多少倍。车不停，只是慢下来。
+        /// </summary>
+        private const float LoadSpeedScale = 0.25f;
+
+        /// <summary>
+        /// 推进行驶中的车。车一直往前走，只有车底压到同色的列时才边开边吸，
+        /// 这时候降速；开过去就吸不到了，只能等下一圈。
         /// </summary>
         /// <param name="car">车辆</param>
         /// <param name="deltaTime">帧间隔</param>
@@ -304,41 +306,95 @@ namespace PixelCar.Common
                 return;
             }
 
-            if (car.X >= ExitOf(car) - 0.001f)
+            var budget = deltaTime;
+            while (budget > 0.0001f)
             {
-                HandleReachExit(car);
-                return;
-            }
-
-            var fromX = car.X;
-            var travel = DriveSpeed * deltaTime;
-            while (travel > 0.0001f)
-            {
-                var step = MathUtil.MinFloat(travel, ColumnWidth * 0.45f);
-                if (step < 0.0001f)
-                {
-                    step = travel;
-                }
-
-                travel -= step;
-                var moved = MoveForward(car, step);
-                if (TryStartLoad(car, fromX))
-                {
-                    return;
-                }
-
-                if (moved <= 0.0001f)
-                {
-                    return;
-                }
-
-                fromX = car.X;
                 if (car.X >= ExitOf(car) - 0.001f)
                 {
                     HandleReachExit(car);
                     return;
                 }
+
+                var column = FindPullColumn(car);
+                var pulling = column >= 0;
+                car.Phase = pulling ? ECarPhase.Loading : ECarPhase.Driving;
+                car.TargetColumn = column;
+
+                var stepTime = MathUtil.MinFloat(budget, ColumnWidth * 0.45f / MathUtil.MaxFloat(0.0001f, DriveSpeed));
+                budget -= stepTime;
+
+                var moved = MoveForward(car, DriveSpeed * (pulling ? LoadSpeedScale : 1f) * stepTime);
+                TickLoad(car, stepTime, column);
+
+                if (car.IsFull)
+                {
+                    StartExiting(car);
+                    return;
+                }
+
+                if (moved <= 0.0001f && !pulling)
+                {
+                    return;
+                }
             }
+        }
+
+        /// <summary>
+        /// 找车身当前压着的、底部颜色跟这辆车相同的列。找不到返回 -1。
+        /// 只要车开过去了就压不到它，这一圈也就拉不到了。
+        /// </summary>
+        /// <param name="car">车辆</param>
+        /// <returns>列号，没有返回 -1</returns>
+        private int FindPullColumn(CarState car)
+        {
+            if (car.Color < 0)
+            {
+                return -1;
+            }
+
+            var column = ColumnAt(car.X);
+            if (column < 0 || column >= Board.Width)
+            {
+                return -1;
+            }
+
+            if (Board.ColumnCount(column) <= 0 || Board.BottomColor(column) != car.Color)
+            {
+                return -1;
+            }
+
+            return column;
+        }
+
+        /// <summary>
+        /// 按节拍往车上装一格。只在压着同色列时计时。
+        /// </summary>
+        /// <param name="car">车辆</param>
+        /// <param name="deltaTime">这一小段的时间</param>
+        /// <param name="column">要吸的列，-1 表示没在吸</param>
+        private void TickLoad(CarState car, float deltaTime, int column)
+        {
+            if (column < 0)
+            {
+                car.LoadTimer = 0f;
+                return;
+            }
+
+            car.LoadTimer += deltaTime;
+            if (car.LoadTimer < LoadInterval)
+            {
+                return;
+            }
+
+            car.LoadTimer -= LoadInterval;
+            if (!Board.TryTake(column, car.Color))
+            {
+                return;
+            }
+
+            ++car.Loaded;
+            ++CellsLoaded;
+            Dirty = true;
         }
 
         /// <summary>
@@ -350,11 +406,8 @@ namespace PixelCar.Common
             switch (OnNotFull)
             {
                 case ENotFullBehavior.Loop:
-                    WrapToEntry(car);
-                    return;
-
                 case ENotFullBehavior.LoopOrReturn:
-                    // 这一圈一格都没装到，就别再绕了，先回待命区，免得占死车位
+                    // 这一圈一格都没装到：再绕下去只是白占车道，先回待命区
                     if (car.Loaded == car.LoadedAtLapStart)
                     {
                         ReturnToPool(car);
@@ -378,32 +431,26 @@ namespace PixelCar.Common
         }
 
         /// <summary>
-        /// 从右侧绕回左侧入口。入口被别的车占着就停在出口等，避免叠车。
+        /// 从右侧绕回左侧。车道会自己延长，所以一定能排进去，不会堵在出口。
         /// </summary>
         /// <param name="car">车辆</param>
         private void WrapToEntry(CarState car)
         {
-            if (!CanWrap(car))
-            {
-                car.X = ExitOf(car);
-                return;
-            }
-
             car.LoadedAtLapStart = car.Loaded;
-            car.X = EntryOf(car);
+            car.X = LaneTail(car);
             car.TargetColumn = -1;
             ++CarsLooped;
         }
 
         /// <summary>
-        /// 入口处有没有够这辆车插入的空档
+        /// 入口这辆车该排在哪个位置：所有车道里的车后面。
+        /// 车道因此向左动态延长，车多长就排多远。
         /// </summary>
-        /// <param name="car">车辆</param>
-        /// <returns>可以绕回时为 true</returns>
-        private bool CanWrap(CarState car)
+        /// <param name="car">要排队的车</param>
+        /// <returns>车中心的世界 x</returns>
+        private float LaneTail(CarState car)
         {
-            var entry = EntryOf(car);
-            var need = HalfLength(car) + CellSize * 0.2f;
+            var x = EntryOf(car);
             for (var i = 0; i < Lane.Count; ++i)
             {
                 var other = Lane[i];
@@ -412,13 +459,14 @@ namespace PixelCar.Common
                     continue;
                 }
 
-                if (other.X < entry + need + HalfLength(other))
+                var stop = other.X - HalfLength(other) - HalfLength(car) - CellSize * 0.18f;
+                if (stop < x)
                 {
-                    return false;
+                    x = stop;
                 }
             }
 
-            return true;
+            return x;
         }
 
         /// <summary>
@@ -434,50 +482,6 @@ namespace PixelCar.Common
             Pool.Add(car);
 
             Occupy(car);
-        }
-
-        /// <summary>
-        /// 推进装色中的车
-        /// </summary>
-        /// <param name="car">车辆</param>
-        /// <param name="deltaTime">帧间隔</param>
-        private void TickLoading(CarState car, float deltaTime)
-        {
-            if (car.IsFull)
-            {
-                StartExiting(car);
-                return;
-            }
-
-            car.LoadTimer += deltaTime;
-            if (car.LoadTimer < LoadInterval)
-            {
-                return;
-            }
-
-            car.LoadTimer = 0f;
-
-            var column = car.TargetColumn;
-            if (column < 0 || column >= Board.Width || Board.BottomColor(column) != car.Color)
-            {
-                // 这列底部换色了（或已取空），继续往前找
-                car.Phase = ECarPhase.Driving;
-                car.X = MathUtil.MaxFloat(car.X, ColumnCenter(column) + ColumnWidth * 0.55f);
-                car.TargetColumn = -1;
-                return;
-            }
-
-            if (Board.TryTake(column, car.Color))
-            {
-                ++car.Loaded;
-                ++CellsLoaded;
-                Dirty = true;
-            }
-
-            if (car.IsFull)
-            {
-                StartExiting(car);
-            }
         }
 
         /// <summary>
@@ -593,49 +597,6 @@ namespace PixelCar.Common
         }
 
         /// <summary>
-        /// 这一小段有没有开到自己能吸的列上。开到了就停在列中心开始吸。
-        /// </summary>
-        /// <param name="car">车辆</param>
-        /// <param name="fromX">这一小段的起点</param>
-        /// <returns>开始吸色时为 true</returns>
-        private bool TryStartLoad(CarState car, float fromX)
-        {
-            var column = ColumnAt(car.X);
-            if (column < 0 && fromX < car.X)
-            {
-                column = ColumnAt((fromX + car.X) * 0.5f);
-            }
-
-            if (column < 0 || column >= Board.Width || Board.ColumnCount(column) <= 0 || Board.BottomColor(column) != car.Color)
-            {
-                return false;
-            }
-
-            var center = ColumnCenter(column);
-            if (center + ColumnWidth * 0.2f < fromX)
-            {
-                return false;
-            }
-
-            var limit = ForwardLimit(car);
-            if (center > limit + 0.02f)
-            {
-                return false;
-            }
-
-            if (car.X + 0.001f < center - ColumnWidth * 0.45f)
-            {
-                return false;
-            }
-
-            car.X = MathUtil.MinFloat(center, limit);
-            car.TargetColumn = column;
-            car.Phase = ECarPhase.Loading;
-            car.LoadTimer = 0f;
-            return true;
-        }
-
-        /// <summary>
         /// 把车占上的格子记进占位表。
         /// </summary>
         /// <param name="car">车辆</param>
@@ -745,16 +706,6 @@ namespace PixelCar.Common
             }
 
             return MathUtil.FloorToInt(local / ColumnWidth);
-        }
-
-        /// <summary>
-        /// 某一列中心的世界坐标
-        /// </summary>
-        /// <param name="column">列号</param>
-        /// <returns>世界坐标</returns>
-        private float ColumnCenter(int column)
-        {
-            return BoardOriginX + (column + 0.5f) * ColumnWidth;
         }
 
     }

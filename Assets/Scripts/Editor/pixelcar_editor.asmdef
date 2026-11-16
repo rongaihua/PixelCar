@@ -4,7 +4,8 @@
     "references": [
         "pixelcar_common",
         "pixelcar_client",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "MyGame.Editor"
     ],
     "includePlatforms": [
         "Editor"

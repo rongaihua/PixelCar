@@ -19,10 +19,13 @@ namespace PixelCar.Client
         private static GameEntry sInstance;
 
         [Header("关卡数据（可留空）")]
-        [Tooltip("编辑器导出的关卡 JSON。留空则自动生成测试关。")]
+        [Tooltip("编辑器导出的色块盘资产，优先于 JSON 使用。")]
+        public PixelBoardAsset BoardAsset;
+
+        [Tooltip("编辑器导出的关卡 JSON。都留空则自动生成测试关。")]
         public TextAsset LevelJson;
 
-        [Header("测试关参数（LevelJson 为空时生效）")]
+        [Header("测试关参数（关卡资产和 JSON 都为空时生效）")]
         public int TestWidth = 80;
 
         public int TestHeight = 50;
