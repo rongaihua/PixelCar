@@ -25,9 +25,9 @@ namespace PixelCar.Editor
         public const string EntryScenePath = "Assets/Scenes/entry.unity";
 
         /// <summary>
-        /// 默认关卡资产
+        /// 默认关卡资产路径（跟着 GameEntry 走）
         /// </summary>
-        public const string BoardAssetPath = "Assets/Generated/PixelBoards/level1.asset";
+        public const string BoardAssetPath = GameEntry.DefaultBoardPath;
 
         /// <summary>
         /// 重建入口场景
@@ -124,18 +124,11 @@ namespace PixelCar.Editor
 
             var changed = false;
 
-            var board = AssetDatabase.LoadAssetAtPath<PixelBoardAsset>(BoardAssetPath);
-            if (board)
+            // 关卡资产走动态加载（GameEntry.BoardAssetPath），这里只保证路径是默认值
+            if (string.IsNullOrEmpty(entry.BoardAssetPath))
             {
-                if (entry.BoardAsset != board)
-                {
-                    entry.BoardAsset = board;
-                    changed = true;
-                }
-            }
-            else
-            {
-                Debug.LogError($"[入口] 找不到关卡资产 {BoardAssetPath}");
+                entry.BoardAssetPath = GameEntry.DefaultBoardPath;
+                changed = true;
             }
 
             if (!entry.UiFont)
@@ -159,17 +152,23 @@ namespace PixelCar.Editor
                 EditorSceneManager.SaveScene(scene);
             }
 
-            Debug.Log($"[入口] 场景已重载：关卡={entry.BoardAsset?.name}，字体={entry.UiFont?.name}");
+            var board = AssetDatabase.LoadAssetAtPath<PixelBoardAsset>(entry.BoardAssetPath);
+            if (!board)
+            {
+                Debug.LogWarning($"[入口] 动态加载路径下没有关卡资产：{entry.BoardAssetPath}");
+            }
+
+            Debug.Log($"[入口] 场景已重载：关卡路径={entry.BoardAssetPath}，字体={entry.UiFont?.name}");
         }
 
         /// <summary>
-        /// 入口场景里的 GameEntry 是否还没挂上关卡资产 / 界面字体
+        /// 入口场景里的 GameEntry 是否还没配好界面字体
         /// </summary>
         /// <returns>需要补赋值时为 true</returns>
         public static bool NeedsAssignment()
         {
             var entry = Object.FindObjectOfType<GameEntry>();
-            return entry != null && (entry.BoardAsset == null || entry.UiFont == null);
+            return entry != null && entry.UiFont == null;
         }
     }
 }

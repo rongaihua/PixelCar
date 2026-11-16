@@ -58,7 +58,7 @@ namespace PixelCar.Editor
         private int mMidCount;
         private int mLargeCount;
 
-        private string mExportDir = "Assets/Generated/PixelBoards";
+        private string mExportDir = "Assets/Res/PixelBoards";
         private string mFileName = "level_01";
 
         private string mStatus = "① 选图   ② 设格子数   ③ 生成   ④ 导出";

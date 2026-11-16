@@ -17,13 +17,14 @@ namespace PixelCar.Client
     public static class PixelCarLevelBuilder
     {
         /// <summary>
-        /// 载入关卡：优先用入口上挂的色块盘资产，其次读 JSON，都没有就生成一张测试图
+        /// 载入关卡：优先用色块盘资产（挂了引用用引用，否则按路径动态加载），
+        /// 其次读 JSON，都没有就生成一张测试图
         /// </summary>
         /// <param name="game">客户端入口</param>
         /// <returns>关卡数据</returns>
         public static PixelBoardLevel Load(GameEntry game)
         {
-            var level = FromAsset(game, game.BoardAsset);
+            var level = FromAsset(game, game.ResolveBoardAsset());
             if (level != null)
             {
                 return level;

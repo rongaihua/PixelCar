@@ -18,9 +18,17 @@ namespace PixelCar.Client
     {
         private static GameEntry sInstance;
 
+        /// <summary>
+        /// 默认关卡资产路径。留空 BoardAsset 时按它动态加载。
+        /// </summary>
+        public const string DefaultBoardPath = "Assets/Res/PixelBoards/level1.asset";
+
         [Header("关卡数据（可留空）")]
-        [Tooltip("编辑器导出的色块盘资产，优先于 JSON 使用。")]
+        [Tooltip("指定了就用它；留空则按下面的路径动态加载。")]
         public PixelBoardAsset BoardAsset;
+
+        [Tooltip("动态加载的关卡资产路径（编辑器下走 AssetDatabase）。")]
+        public string BoardAssetPath = DefaultBoardPath;
 
         [Tooltip("编辑器导出的关卡 JSON。都留空则自动生成测试关。")]
         public TextAsset LevelJson;
@@ -74,6 +82,16 @@ namespace PixelCar.Client
         /// 背景音乐编号上限，含
         /// </summary>
         private const int MusicMax = 14;
+
+        /// <summary>
+        /// 动态加载到的关卡资产
+        /// </summary>
+        private PixelBoardAsset mLoadedBoard;
+
+        /// <summary>
+        /// 关卡资产的加载持有，销毁时归还
+        /// </summary>
+        private MyGame.ResHandle mBoardHandle;
 
         /// <summary>
         /// 当前实例
@@ -141,6 +159,44 @@ namespace PixelCar.Client
         }
 
         /// <summary>
+        /// 取关卡资产：挂了引用就用引用，否则按路径动态加载（只加载一次）。
+        /// </summary>
+        /// <returns>关卡资产。加载不到时为空。</returns>
+        public PixelBoardAsset ResolveBoardAsset()
+        {
+            if (BoardAsset)
+            {
+                return BoardAsset;
+            }
+
+            if (mLoadedBoard)
+            {
+                return mLoadedBoard;
+            }
+
+            if (string.IsNullOrEmpty(BoardAssetPath))
+            {
+                return null;
+            }
+
+            var resMgr = MyGame.G.ResMgr;
+            if (resMgr == null)
+            {
+                MyGame.Logger.Warn($"资源管理器还没初始化，关卡资产加载不了：{BoardAssetPath}");
+                return null;
+            }
+
+            mBoardHandle = resMgr.LoadResSync<PixelBoardAsset>(BoardAssetPath);
+            mLoadedBoard = mBoardHandle?.Asset as PixelBoardAsset;
+            if (!mLoadedBoard)
+            {
+                MyGame.Logger.Warn($"关卡资产加载失败：{BoardAssetPath}");
+            }
+
+            return mLoadedBoard;
+        }
+
+        /// <summary>
         /// 销毁
         /// </summary>
         private void OnDestroy()
@@ -156,6 +212,13 @@ namespace PixelCar.Client
                 Main = null;
             }
 
+            if (mBoardHandle != null)
+            {
+                MyGame.G.ResMgr?.Release(mBoardHandle);
+                mBoardHandle = null;
+            }
+
+            mLoadedBoard = null;
             sInstance = null;
             MyGame.G.Destroy();
         }
