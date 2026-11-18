@@ -41,7 +41,9 @@ namespace PixelCar.Client
         private GameObject mOverlay;
         private TextMeshProUGUI mOverlayTitle;
         private TextMeshProUGUI mOverlayBody;
+        private TextMeshProUGUI mOverlayButtonLabel;
         private bool mRestartRequested;
+        private bool mNextLevelRequested;
 
         /// <summary>
         /// 绑定主模块并搭好界面。
@@ -75,6 +77,13 @@ namespace PixelCar.Client
         {
             if (mModule == null || mModule.Sim == null)
             {
+                return;
+            }
+
+            if (mNextLevelRequested)
+            {
+                mNextLevelRequested = false;
+                mModule.NextLevel();
                 return;
             }
 
@@ -247,11 +256,11 @@ namespace PixelCar.Client
 
             var buttonImage = button.gameObject.AddComponent<Button>();
             buttonImage.targetGraphic = button;
-            buttonImage.onClick.AddListener(OnRestartClicked);
+            buttonImage.onClick.AddListener(OnOverlayClicked);
 
-            var label = CreateText("Label", buttonRect, 40, TextAlignmentOptions.Center, Color.white);
-            label.text = "重开本关";
-            Stretch(label.rectTransform);
+            mOverlayButtonLabel = CreateText("Label", buttonRect, 40, TextAlignmentOptions.Center, Color.white);
+            mOverlayButtonLabel.text = "重开本关";
+            Stretch(mOverlayButtonLabel.rectTransform);
 
             mOverlay.SetActive(false);
         }
@@ -264,7 +273,7 @@ namespace PixelCar.Client
             var board = mModule.Sim.Board;
             var taken = mModule.InitialCells - board.TotalRemaining;
             var percent = mModule.InitialCells <= 0 ? 0 : MathUtil.RoundToInt(taken * 100f / mModule.InitialCells);
-            mStatusText.text = $"车道 {mModule.Sim.Lane.Count}/{mModule.LaneCapacity}    剩余 {board.TotalRemaining} 格    {percent}%";
+            mStatusText.text = $"第 {mModule.Level} 关    车道 {mModule.Sim.Lane.Count}/{mModule.LaneCapacity}    剩余 {board.TotalRemaining} 格    {percent}%";
         }
 
         /// <summary>
@@ -383,15 +392,24 @@ namespace PixelCar.Client
             var board = mModule.Sim.Board;
             if (mModule.Cleared)
             {
-                mOverlayTitle.text = "过关！";
+                mOverlayTitle.text = $"第 {mModule.Level} 关 · 过关！";
                 mOverlayBody.text = $"全部色块都运走了，共 {mModule.Sim.CarsCompleted} 辆车。";
+                if (mOverlayButtonLabel)
+                {
+                    mOverlayButtonLabel.text = "下一关";
+                }
+
                 return;
             }
 
             var taken = mModule.InitialCells - board.TotalRemaining;
             var percent = MathUtil.RoundToInt(taken * 100f / MathUtil.Max(1, mModule.InitialCells));
-            mOverlayTitle.text = "本关失败";
+            mOverlayTitle.text = $"第 {mModule.Level} 关 · 失败";
             mOverlayBody.text = $"车道上的车都等不到自己的颜色，待命区也没有车能拉到色块。\n\n已取 {percent}%　还剩 {board.TotalRemaining} 格";
+            if (mOverlayButtonLabel)
+            {
+                mOverlayButtonLabel.text = "重开本关";
+            }
         }
 
         /// <summary>
@@ -413,10 +431,16 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 重开按钮。
+        /// 结算弹窗按钮：过关时进下一关，失败时重开本关。
         /// </summary>
-        private void OnRestartClicked()
+        private void OnOverlayClicked()
         {
+            if (mModule != null && mModule.Cleared)
+            {
+                mNextLevelRequested = true;
+                return;
+            }
+
             mRestartRequested = true;
         }
 

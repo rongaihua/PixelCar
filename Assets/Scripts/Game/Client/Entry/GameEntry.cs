@@ -19,15 +19,20 @@ namespace PixelCar.Client
         private static GameEntry sInstance;
 
         /// <summary>
-        /// 默认关卡资产路径。留空 BoardAsset 时按它动态加载。
+        /// 关卡资产目录。第 N 关的资产是 levelN.asset。
         /// </summary>
-        public const string DefaultBoardPath = "Assets/Res/PixelBoards/level1.asset";
+        public const string BoardDirectory = "Assets/Res/PixelBoards/";
 
-        [Header("关卡数据（可留空）")]
-        [Tooltip("动态加载的关卡资产路径（编辑器下走 AssetDatabase）。留空则改用 JSON / 测试关。")]
-        public string BoardAssetPath = DefaultBoardPath;
+        /// <summary>
+        /// 第一关的关卡号。
+        /// </summary>
+        public const int FirstLevel = 1;
 
-        [Tooltip("编辑器导出的关卡 JSON。都留空则自动生成测试关。")]
+        [Header("关卡数据")]
+        [Tooltip("当前关卡号，从 1 起。第 N 关加载 Assets/Res/PixelBoards/levelN.asset，过关后自动 +1。")]
+        public int Level = FirstLevel;
+
+        [Tooltip("编辑器导出的关卡 JSON。关卡资产和它都为空时自动生成测试关。")]
         public TextAsset LevelJson;
 
         [Header("测试关参数（关卡资产和 JSON 都为空时生效）")]
@@ -91,6 +96,11 @@ namespace PixelCar.Client
         private MyGame.ResHandle mBoardHandle;
 
         /// <summary>
+        /// 当前加载进来的关卡号，0 表示还没加载
+        /// </summary>
+        private int mLoadedLevel;
+
+        /// <summary>
         /// 当前实例
         /// </summary>
         public static GameEntry Instance => sInstance;
@@ -117,6 +127,7 @@ namespace PixelCar.Client
 
             if (StartWindow)
             {
+                StartWindow.Level = Level;
                 StartWindow.StartClicked += OnStartClicked;
                 StartWindow.Show();
                 return;
@@ -156,36 +167,109 @@ namespace PixelCar.Client
         }
 
         /// <summary>
-        /// 按路径动态加载关卡资产（只加载一次，销毁时归还）。
+        /// 第 N 关的关卡资产路径。
+        /// </summary>
+        /// <param name="level">关卡号，从 1 起</param>
+        /// <returns>资产路径</returns>
+        public static string BoardPathOf(int level)
+        {
+            return BoardDirectory + "level" + Mathf.Max(FirstLevel, level) + ".asset";
+        }
+
+        /// <summary>
+        /// 按当前关卡号动态加载关卡资产（加载一次，切关时换新的）。
         /// </summary>
         /// <returns>关卡资产。加载不到时为空。</returns>
         public PixelBoardAsset ResolveBoardAsset()
         {
-            if (mLoadedBoard)
+            if (mLoadedBoard && mLoadedLevel == Level)
             {
                 return mLoadedBoard;
             }
 
-            if (string.IsNullOrEmpty(BoardAssetPath))
+            return LoadBoard(Level) ? mLoadedBoard : null;
+        }
+
+        /// <summary>
+        /// 进下一关：先把 level{N+1} 加载进来，成功了才把关卡号 +1。
+        /// </summary>
+        /// <returns>下一关可用时为 true；资产不存在时返回 false，关卡号不变</returns>
+        public bool NextLevel()
+        {
+            return SetLevel(Level + 1);
+        }
+
+        /// <summary>
+        /// 切到指定关卡。
+        /// </summary>
+        /// <param name="level">关卡号，从 1 起</param>
+        /// <returns>切关成功时为 true</returns>
+        public bool SetLevel(int level)
+        {
+            if (level < FirstLevel)
             {
-                return null;
+                return false;
             }
 
+            if (level == Level && mLoadedBoard)
+            {
+                return true;
+            }
+
+            if (!LoadBoard(level))
+            {
+                MyGame.Logger.Warn($"第 {level} 关的关卡资产不存在：{BoardPathOf(level)}");
+                return false;
+            }
+
+            Level = level;
+            return true;
+        }
+
+        /// <summary>
+        /// 加载某一关的关卡资产，成功后才把旧的还掉。
+        /// </summary>
+        /// <param name="level">关卡号，从 1 起</param>
+        /// <returns>加载成功时为 true</returns>
+        private bool LoadBoard(int level)
+        {
+            var path = BoardPathOf(level);
             var resMgr = MyGame.G.ResMgr;
             if (resMgr == null)
             {
-                MyGame.Logger.Warn($"资源管理器还没初始化，关卡资产加载不了：{BoardAssetPath}");
-                return null;
+                MyGame.Logger.Warn($"资源管理器还没初始化，关卡资产加载不了：{path}");
+                return false;
             }
 
-            mBoardHandle = resMgr.LoadResSync<PixelBoardAsset>(BoardAssetPath);
-            mLoadedBoard = mBoardHandle?.Asset as PixelBoardAsset;
-            if (!mLoadedBoard)
+            var handle = resMgr.LoadResSync<PixelBoardAsset>(path);
+            var asset = handle?.Asset as PixelBoardAsset;
+            if (!asset)
             {
-                MyGame.Logger.Warn($"关卡资产加载失败：{BoardAssetPath}");
+                resMgr.Release(handle);
+                MyGame.Logger.Warn($"关卡资产加载失败：{path}");
+                return false;
             }
 
-            return mLoadedBoard;
+            ReleaseBoard();
+            mBoardHandle = handle;
+            mLoadedBoard = asset;
+            mLoadedLevel = level;
+            return true;
+        }
+
+        /// <summary>
+        /// 归还当前关卡资产。
+        /// </summary>
+        private void ReleaseBoard()
+        {
+            if (mBoardHandle != null)
+            {
+                MyGame.G.ResMgr?.Release(mBoardHandle);
+            }
+
+            mBoardHandle = null;
+            mLoadedBoard = null;
+            mLoadedLevel = 0;
         }
 
         /// <summary>
@@ -204,13 +288,11 @@ namespace PixelCar.Client
                 Main = null;
             }
 
-            if (mBoardHandle != null)
+            if (mBoardHandle != null || mLoadedBoard)
             {
-                MyGame.G.ResMgr?.Release(mBoardHandle);
-                mBoardHandle = null;
+                ReleaseBoard();
             }
 
-            mLoadedBoard = null;
             sInstance = null;
             MyGame.G.Destroy();
         }

@@ -75,6 +75,11 @@ namespace PixelCar.Client
         public int LaneCapacity => Game.LaneCapacity;
 
         /// <summary>
+        /// 当前关卡号，从 1 起
+        /// </summary>
+        public int Level => Game.Level;
+
+        /// <summary>
         /// 车道名额牌的世界坐标，画在路中央。
         /// </summary>
         /// <summary>
@@ -205,6 +210,20 @@ namespace PixelCar.Client
             mLastPoolCount = -1;
 
             Init();
+        }
+
+        /// <summary>
+        /// 过关后进下一关：level{N+1} 存在就换过去重开，不存在就留在本关提示一句。
+        /// </summary>
+        public void NextLevel()
+        {
+            if (!Game.NextLevel())
+            {
+                ShowMessage($"第 {Game.Level + 1} 关还没有，先留在本关");
+                return;
+            }
+
+            Restart();
         }
 
         /// <summary>

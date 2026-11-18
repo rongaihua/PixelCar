@@ -25,11 +25,6 @@ namespace PixelCar.Editor
         public const string EntryScenePath = "Assets/Scenes/entry.unity";
 
         /// <summary>
-        /// 默认关卡资产路径（跟着 GameEntry 走）
-        /// </summary>
-        public const string BoardAssetPath = GameEntry.DefaultBoardPath;
-
-        /// <summary>
         /// 重建入口场景
         /// </summary>
         [MenuItem("Tools/PixelCar/重建入口场景")]
@@ -124,10 +119,10 @@ namespace PixelCar.Editor
 
             var changed = false;
 
-            // 关卡资产走动态加载（GameEntry.BoardAssetPath），这里只保证路径是默认值
-            if (string.IsNullOrEmpty(entry.BoardAssetPath))
+            // 关卡资产按关卡号动态加载（第 N 关 = Assets/Res/PixelBoards/levelN.asset），这里只保证从第一关开始
+            if (entry.Level < GameEntry.FirstLevel)
             {
-                entry.BoardAssetPath = GameEntry.DefaultBoardPath;
+                entry.Level = GameEntry.FirstLevel;
                 changed = true;
             }
 
@@ -152,13 +147,14 @@ namespace PixelCar.Editor
                 EditorSceneManager.SaveScene(scene);
             }
 
-            var board = AssetDatabase.LoadAssetAtPath<PixelBoardAsset>(entry.BoardAssetPath);
+            var boardPath = GameEntry.BoardPathOf(entry.Level);
+            var board = AssetDatabase.LoadAssetAtPath<PixelBoardAsset>(boardPath);
             if (!board)
             {
-                Debug.LogWarning($"[入口] 动态加载路径下没有关卡资产：{entry.BoardAssetPath}");
+                Debug.LogWarning($"[入口] 第 {entry.Level} 关的关卡资产不存在：{boardPath}");
             }
 
-            Debug.Log($"[入口] 场景已重载：关卡路径={entry.BoardAssetPath}，字体={entry.UiFont?.name}");
+            Debug.Log($"[入口] 场景已重载：第 {entry.Level} 关（{boardPath}），字体={entry.UiFont?.name}");
         }
 
         /// <summary>
